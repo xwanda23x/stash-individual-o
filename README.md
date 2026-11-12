@@ -1,24 +1,31 @@
-# Template for creating Stash plugins source index
+# Stash Individual O
 
-This template allows you to create a new repository with a few clicks with preconfigured GitHub action to publish your plugins source index. 
-_This assumes you already know how to create plugins for Stash. If you don't, first read [this](https://docs.stashapp.cc/in-app-manual/plugins/#creating-plugins)._
+This repository hosts **Individual O**, a community plugin for [Stash](https://github.com/stashapp/stash).
 
-## How to use it?
+## Available plugin
 
-1. Click **Use this template** > **Create a new repository**. 
-1. Choose a repository name and click **Create repository**.
-1. Open **Settings** and head to **Pages**.
-1. Under Build and deployment select the Source as GitHub Actions.
+### Individual O
 
-Now add your plugins to [plugins](/plugins) directory and they will be automatically published to the source index.
+Track individual O events for performers across scenes and images, with dedicated counters, histories, scene-marker integration, and optional synchronization with Stash's native O counters.
 
-Source index URL: [`https://<your-username>.github.io/<repository-name>/main/index.yml`](https://<your-username>.github.io/<repository-name>/main/index.yml)
+- [Plugin documentation and features](plugins/IndividualO/README.md)
+- [Plugin source files](plugins/IndividualO/)
+- [Latest release](https://github.com/xwanda23x/stash-individual-o/releases)
 
-## Share your plugins
+## Installation
 
-- [Create a new topic](https://discourse.stashapp.cc/t/-/33) for your plugin on the community forum.
-- [Add your source index to the list](https://discourse.stashapp.cc/t/-/122) on the Stash community forum.
+Add the following source in **Stash → Settings → Plugins**:
+
+`https://xwanda23x.github.io/stash-individual-o/main/index.yml`
+
+Stash will then be able to discover and install Individual O.
+
+## Plugin source index
+
+The repository automatically publishes its plugin source index using GitHub Actions.
+
+[View the plugin source index](https://xwanda23x.github.io/stash-individual-o/main/index.yml)
 
 ## License
 
-The default license is set to [AGPL-3.0](/LICENCE). Before publishing any plugins you can change it.
+This repository is distributed under the [AGPL-3.0 license](LICENCE).

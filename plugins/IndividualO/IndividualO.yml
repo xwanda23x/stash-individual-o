@@ -1,5 +1,6 @@
+
 name: Individual O
-description: Enregistre les O individuels et synchronise la création automatique des O classiques natifs Stash.
+description: Track individual O events for performers across scenes and images, with dedicated histories, counters, marker integration, and optional synchronization with Stash's native O counters.
 version: "0.8.2"
 ui:
   javascript:
@@ -9,41 +10,38 @@ ui:
 
 settings:
   hideSidebarActions:
-    displayName: Masquer les boutons Modifier / Supprimer
-    description: "Masque les boutons de modification et de suppression dans les historiques latéraux des scènes et des images. Désactivé par défaut : les boutons restent visibles."
+    displayName: Hide Edit / Delete Buttons
+    description: "Hide edit and delete buttons in scene and image sidebar histories. Disabled by default: the buttons remain visible."
     type: BOOLEAN
   syncClassicSceneO:
-    displayName: Créer automatiquement un O classique sur les scènes
-    description: "Lorsque cette option est activée, un O classique natif Stash est créé en même temps qu’un O individuel enregistré avec la date et l’heure actuelles. Désactivée, seul l’O individuel est enregistré."
+    displayName: Automatically Create Classic O on Scenes
+    description: "When enabled, a native Stash O event is created alongside an individual O recorded using the current date and time. When disabled, only the individual O is recorded."
     type: BOOLEAN
-
   syncClassicImageO:
-    displayName: Créer automatiquement un O classique sur les images
-    description: "Lorsque cette option est activée, le compteur O classique natif Stash de l’image est incrémenté en même temps qu’un O individuel. Désactivée, seul l’O individuel est enregistré."
+    displayName: Automatically Create Classic O on Images
+    description: "When enabled, the native Stash O counter for an image is incremented alongside an individual O. When disabled, only the individual O is recorded."
     type: BOOLEAN
   hideIndividualCounters:
-    displayName: Masquer le compteur individuel
-    description: "Masque les compteurs individuels sur les fiches de performeurs et leurs cartes. Désactivé par défaut : les compteurs restent visibles."
+    displayName: Hide Individual Counters
+    description: "Hide individual counters on performer profiles and wall cards. Disabled by default: the counters remain visible."
     type: BOOLEAN
   hideHistoryMarkerCounters:
-    displayName: Masquer les compteurs des historiques latéraux et des marqueurs Splooge
-    description: "Masque les compteurs dans les historiques latéraux des scènes et des images, ainsi que sur les marqueurs Splooge et leurs aperçus. Désactivé par défaut : les compteurs restent visibles."
+    displayName: Hide History and Splooge Marker Counters
+    description: "Hide counters in scene and image sidebar histories, on Splooge markers, and on their previews. Disabled by default: the counters remain visible."
     type: BOOLEAN
-
   hideClassicPerformerCounters:
-    displayName: Masquer les compteurs O classiques des performeurs
-    description: "Masque l’icône et le compteur O classique natif Stash sur les fiches et les cartes des performeurs. Désactivé par défaut : les compteurs restent visibles."
+    displayName: Hide Native Stash Performer O Counters
+    description: "Hide the native Stash O icon and counter on performer profiles and wall cards. Disabled by default: the counters remain visible."
     type: BOOLEAN
-
   promptMarkerCreation:
-    displayName: Proposer la création automatique d’un marqueur
-    description: "Lorsqu’aucun marqueur correspondant n’est sélectionné, propose de créer un marqueur et l’associer à l’O individuel. Désactivé par défaut : enregistre l’O sans marqueur, sans afficher la proposition."
+    displayName: Offer Automatic Marker Creation
+    description: "When no matching marker is selected, offer to create a marker and associate it with the individual O. When disabled, the individual O is saved without a marker and no prompt is shown."
     type: BOOLEAN
   newMarkerTitle:
-    displayName: Titre du marqueur créé automatiquement
-    description: "Titre attribué au marqueur créé automatiquement. Ce même titre sert automatiquement à rechercher et afficher les marqueurs existants. Obligatoire : aucun titre prérempli."
+    displayName: Automatically Created Marker Title
+    description: "Title assigned to automatically created markers. The same title is used to find and display existing markers. Required; no default title is provided."
     type: STRING
   newMarkerPrimaryTag:
-    displayName: Étiquette principale du marqueur créé
-    description: "Le tag doit déjà exister dans Stash. Saisis son nom exactement à l’identique (majuscules, accents et espaces compris) : il sera associé au marqueur créé automatiquement. Obligatoire : aucun tag prérempli."
+    displayName: Primary Tag for Created Markers
+    description: "The tag must already exist in Stash. Enter its exact name, including capitalization, accents, and spaces. Required; no default tag is provided."
     type: STRING

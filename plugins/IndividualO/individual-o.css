@@ -1,0 +1,789 @@
+/* Scene action is embedded in the left details panel, below performer cards. */
+#individual-o-root { position:relative; display:block; width:100%; max-width:100%; margin:12px 0 16px; z-index:2; }
+.individual-o-launcher { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; max-width:100%; min-height:38px; border:1px solid #477b68; border-radius:7px; padding:8px 10px; background:#203d35; color:#e7fff3; font-weight:700; font-size:13px; box-shadow:none; cursor:pointer; }
+.individual-o-launcher:hover { background:#2a5145; border-color:#65a58b; }
+.individual-o-symbol { display:inline-flex; flex:none; align-items:center; justify-content:center; width:23px; height:23px; border-radius:50%; background:#34795d; color:#fff; font-weight:900; }
+.individual-o-backdrop { position:fixed; inset:0; z-index:2000; display:flex; align-items:center; justify-content:center; padding:20px; background:#000a; }
+.individual-o-modal { width:min(560px, 100%); max-height:min(82vh, 760px); overflow:auto; color:#e9edf3; background:#252d38; border:1px solid #46515f; border-radius:12px; box-shadow:0 18px 60px #0009; }
+.individual-o-header { display:flex; justify-content:space-between; align-items:center; padding:20px 22px 15px; border-bottom:1px solid #414b58; }
+.individual-o-header h2 { margin:2px 0 0; font-size:22px; color:#fff; }
+.individual-o-kicker { color:#91a9c7; font-size:10px; font-weight:800; letter-spacing:1.6px; }
+.individual-o-close { border:0; background:transparent; color:#dbe2ea; font-size:28px; cursor:pointer; }
+.individual-o-content { padding:20px 22px 24px; }
+.individual-o-scene-title { margin-bottom:20px; color:#fff; font-size:16px; font-weight:700; }
+.individual-o-section-title { margin:10px 0 12px; color:#cbd5e1; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; }
+.individual-o-performers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.individual-o-performer { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #46515f; border-radius:7px; background:#303a47; cursor:pointer; }
+.individual-o-performer input { width:16px; height:16px; accent-color:#6fa7ed; }
+.individual-o-performer span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.individual-o-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:16px; }
+.individual-o-save { border:0; border-radius:7px; padding:10px 15px; color:#fff; background:#28734f; font-weight:800; cursor:pointer; }
+.individual-o-save:hover { background:#328b60; }
+.individual-o-save:disabled { opacity:.5; cursor:not-allowed; }
+.individual-o-status { color:#aeb9c7; font-size:12px; }
+.individual-o-status.is-success { color:#80d5a6; }
+.individual-o-status.is-error,.individual-o-error { color:#ff9b91; }
+.individual-o-divider { height:1px; margin:22px 0 18px; background:#414b58; }
+.individual-o-count { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; margin-left:5px; padding:0 6px; border-radius:12px; background:#46576b; color:#fff; }
+.individual-o-history-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid #3c4652; }
+.individual-o-history-date { color:#fff; font-weight:700; font-size:13px; }
+.individual-o-history-names { margin-top:4px; color:#b8c4d2; font-size:12px; }
+.individual-o-delete { flex:none; border:1px solid #89544f; border-radius:6px; padding:6px 9px; background:transparent; color:#ffaaa0; cursor:pointer; font-size:11px; }
+.individual-o-delete:hover { background:#5b3534; }
+.individual-o-empty,.individual-o-loading { color:#aeb9c7; font-size:13px; }
+@media(max-width:600px) { .individual-o-performers { grid-template-columns:1fr; } .individual-o-content { padding:16px; } }
+
+#individual-o-performer-counter { display:inline-flex; align-items:center; vertical-align:middle; margin:0 0 0 8px; }
+#performer-page .quality-group #individual-o-performer-counter { flex:0 0 auto; }
+.individual-o-profile-badge { display:inline-flex; align-items:center; gap:7px; border:1px solid #477b68; border-radius:6px; padding:3px 7px; background:#203d35; color:#e7fff3; cursor:pointer; font-size:12px; line-height:1.4; white-space:nowrap; }
+.individual-o-profile-badge strong { display:inline-flex; align-items:center; justify-content:center; min-width:19px; height:19px; padding:0 5px; border-radius:12px; background:#34795d; color:#fff; font-size:12px; }
+.individual-o-profile-badge:disabled { opacity:.7; cursor:wait; }
+.individual-o-scene-link { display:inline-block; margin-top:4px; color:#8dbbff; text-decoration:none; font-size:12px; }
+.individual-o-scene-link:hover { text-decoration:underline; }
+
+/* Distinct visual treatment: not a clone of Stash's native O counter. */
+.performer-card .card-popovers .individual-o-card-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  margin: 2px 0 2px 7px;
+  padding: 3px 8px;
+  min-height: 25px;
+  border: 1px solid #477b68;
+  border-radius: 999px;
+  background: #203d35;
+  color: #e7fff3;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.performer-card .card-popovers .individual-o-card-pill:hover {
+  background: #2b5548;
+  border-color: #70a88f;
+}
+.performer-card .card-popovers .individual-o-card-pill strong {
+  color: #fff;
+  font-weight: 700;
+}
+.performer-card .card-popovers .individual-o-card-mark {
+  color: #a8dfc5;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+.performer-card .card-popovers .individual-o-card-pill:disabled {
+  opacity: .7;
+  cursor: wait;
+}
+.performer-card .individual-o-card-divider {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--bs-border-color, #495057);
+}
+
+
+/* Per-entry date/time editing in the scene history. */
+.individual-o-history-main { min-width:0; flex:1 1 auto; }
+.individual-o-history-actions { display:flex; align-items:center; gap:6px; flex:none; }
+.individual-o-edit,
+.individual-o-date-save,
+.individual-o-date-cancel {
+  border:1px solid #536273; border-radius:6px; padding:6px 9px;
+  background:#303a47; color:#dce7f2; cursor:pointer; font-size:11px;
+}
+.individual-o-edit:hover,
+.individual-o-date-cancel:hover { background:#3b4858; }
+.individual-o-date-editor { display:flex; flex-wrap:wrap; align-items:end; gap:9px; }
+.individual-o-date-editor label { display:flex; flex-direction:column; gap:5px; color:#cbd5e1; font-size:11px; font-weight:700; }
+.individual-o-date-editor input { min-height:32px; border:1px solid #536273; border-radius:6px; padding:5px 8px; background:#1d2530; color:#fff; color-scheme:dark; font:inherit; }
+.individual-o-date-actions { display:flex; gap:6px; }
+.individual-o-date-save { border-color:#477b68; background:#28734f; color:#fff; font-weight:700; }
+.individual-o-date-save:hover { background:#328b60; }
+.individual-o-date-save:disabled { opacity:.6; cursor:wait; }
+@media(max-width:520px) {
+  .individual-o-history-row { align-items:flex-start; }
+  .individual-o-history-actions { flex-direction:column; align-items:stretch; }
+  .individual-o-date-editor { align-items:stretch; }
+  .individual-o-date-editor input { width:100%; }
+}
+
+/* Playback timestamp captured when the scene manager opens. */
+.individual-o-captured-time { margin:-8px 0 14px; color:#aeb9c7; font-size:12px; }
+.individual-o-captured-time strong { color:#9ed8b8; font-variant-numeric:tabular-nums; }
+.individual-o-timestamp { display:inline-flex; align-items:center; margin-top:5px; border:1px solid #536273; border-radius:5px; padding:3px 7px; background:#303a47; color:#a9d7bd; font-size:11px; font-weight:700; cursor:pointer; }
+.individual-o-timestamp:hover { border-color:#70a88f; background:#3a4a49; }
+.individual-o-date-editor label { min-width:0; }
+.individual-o-date-editor input[data-timestamp-input] { width:125px; font-variant-numeric:tabular-nums; }
+
+
+
+/* Count of Individual O attributions displayed beside matching Splooge markers. */
+.individual-o-marker-count {
+  display:inline-flex; align-items:center; justify-content:center; vertical-align:middle;
+  margin-left:7px; padding:2px 7px; border:1px solid #477b68; border-radius:999px;
+  background:#203d35; color:#dff8eb; font-size:11px; font-weight:800; line-height:1.4;
+  white-space:nowrap;
+}
+
+
+/* Badge overlaid on the actual generated marker preview frame (bottom-right). */
+.individual-o-marker-preview-host { position: relative !important; }
+.individual-o-marker-preview-count {
+  position: absolute !important;
+  right: 8px !important;
+  top: 8px !important;
+  z-index: 40 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #fff !important;
+  font: 400 12px/1.2 sans-serif !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.95), 0 0 3px rgba(0,0,0,.8) !important;
+}
+.individual-o-marker-preview-count svg {
+  display: inline-block !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+
+.individual-o-classic-date { margin:0 0 16px; }
+.individual-o-classic-date label { display:block; margin:0 0 7px; color:#cbd5e1; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.35px; }
+.individual-o-classic-o-select { display:block; width:100%; min-height:42px; padding:9px 12px; border:1px solid #4b5563; border-radius:7px; background:#343b48; color:#f5f8fa; font:inherit; font-size:13px; }
+.individual-o-classic-help { margin-top:6px; color:#aeb9c7; font-size:11px; }
+
+
+/* Scene sidebar: individual O history immediately below Stash's native .o-history. */
+#individual-o-scene-sidebar-history {
+  margin-top: 8px;
+  padding: 8px 0 10px;
+  border-top: 1px solid var(--bs-border-color, #495057);
+}
+.individual-o-scene-sidebar-heading {
+  display:flex; align-items:center; gap:7px; margin:0 0 7px;
+  color:var(--bs-body-color, #f5f8fa); font-size:13px; font-weight:700;
+}
+.individual-o-scene-sidebar-heading .badge { font-size:10px; }
+.individual-o-scene-sidebar-list { list-style:none; margin:0; padding:0; }
+.individual-o-scene-sidebar-row {
+  padding:5px 7px; border-bottom:1px solid rgba(128, 140, 155, .18); font-size:12px;
+}
+.individual-o-scene-sidebar-row:last-child { border-bottom:0; }
+.individual-o-scene-sidebar-date { color:var(--bs-body-color, #f5f8fa); font-weight:600; }
+.individual-o-scene-sidebar-timestamp {
+  display:inline-block; margin-top:3px; padding:2px 6px;
+  border:1px solid var(--bs-border-color, #495057); border-radius:4px;
+  background:rgba(128, 140, 155, .12); color:var(--bs-body-color, #f5f8fa); font-size:11px;
+}
+.individual-o-scene-sidebar-performers {
+  margin-top:3px; color:var(--bs-secondary-color, #aeb9c7); font-size:11px;
+}
+.individual-o-scene-sidebar-actions {
+  display:flex; align-items:center; gap:5px; margin-top:4px;
+}
+.individual-o-sidebar-action {
+  border:0; border-radius:4px; padding:2px 5px;
+  background:transparent; color:var(--bs-secondary-color, #aeb9c7);
+  font-size:10px; line-height:1.35; cursor:pointer;
+  opacity:.72; transition:background-color .12s ease, color .12s ease, opacity .12s ease;
+}
+.individual-o-sidebar-action:hover,
+.individual-o-sidebar-action:focus-visible {
+  opacity:1; background:rgba(128, 140, 155, .16); color:var(--bs-body-color, #f5f8fa);
+}
+.individual-o-sidebar-action.is-danger:hover,
+.individual-o-sidebar-action.is-danger:focus-visible { color:#f08b86; }
+.individual-o-scene-sidebar-empty {
+  padding:4px 7px; color:var(--bs-secondary-color, #aeb9c7); font-size:12px;
+}
+
+
+/* Individual O 0.7.16 — dedicated global history view */
+#individual-o-global-page {
+  position: fixed; inset: 0; z-index: 100000; overflow: auto;
+  background: var(--body-bg, #17191d); color: var(--bs-body-color, #f1f3f5);
+  padding: 28px; box-sizing: border-box;
+}
+.io-global-shell { max-width: 1500px; margin: 0 auto; }
+.io-global-header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:24px; }
+.io-global-kicker { color:var(--bs-secondary-color,#9ba3ad); font-size:11px; letter-spacing:2px; font-weight:700; }
+.io-global-header h1 { font-size:26px; font-weight:600; margin:5px 0; }
+.io-global-subtitle { color:var(--bs-secondary-color,#9ba3ad); font-size:13px; }
+.io-global-close { border:0; background:transparent; color:inherit; font-size:30px; cursor:pointer; line-height:1; }
+.io-global-filters { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:12px; padding:18px; background:var(--bs-card-bg,#22262c); border:1px solid var(--bs-border-color,#3a414a); border-radius:8px; }
+.io-global-filters label { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--bs-secondary-color,#aeb5bd); }
+.io-global-filters input,.io-global-filters select { width:100%; min-height:36px; padding:6px 9px; border:1px solid var(--bs-border-color,#48515b); border-radius:5px; background:var(--bs-body-bg,#17191d); color:inherit; }
+.io-global-filters button,.io-global-actions button,.io-global-refresh { border:1px solid var(--bs-border-color,#48515b); border-radius:5px; padding:7px 11px; background:transparent; color:inherit; cursor:pointer; }
+.io-global-filters .io-global-reset { align-self:end; min-height:36px; }
+.io-global-summary { display:flex; align-items:center; gap:14px; padding:16px 2px; color:var(--bs-secondary-color,#aeb5bd); font-size:13px; }
+.io-global-summary strong { color:var(--bs-body-color,#f1f3f5); }
+.io-global-summary .io-global-refresh { margin-left:auto; }
+.io-global-results { border-top:1px solid var(--bs-border-color,#3a414a); }
+.io-global-row { display:grid; grid-template-columns:170px minmax(0,1fr) auto; gap:20px; align-items:center; padding:15px 10px; border-bottom:1px solid var(--bs-border-color,#343a42); }
+.io-global-date { font-size:13px; font-weight:600; white-space:nowrap; }
+.io-global-performers { font-weight:600; margin-bottom:4px; }
+.io-global-scene { color:var(--bs-link-color,#6ea8fe); text-decoration:none; }
+.io-global-scene:hover { text-decoration:underline; }
+.io-global-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:7px; }
+.io-global-timecode,.io-global-marker { font-size:11px; padding:3px 7px; border-radius:4px; background:rgba(128,128,128,.16); color:var(--bs-secondary-color,#b7bec7); }
+.io-global-actions { display:flex; gap:7px; }
+.io-global-actions button { font-size:12px; }
+.io-global-actions button.danger { color:#e58b8b; }
+.io-global-loading,.io-global-empty,.io-global-error { padding:40px 15px; text-align:center; color:var(--bs-secondary-color,#aeb5bd); }
+.io-global-error { color:#e58b8b; }
+#individual-o-global-nav { margin-left:auto !important; }
+#individual-o-global-nav a { cursor:pointer; display:inline-flex; align-items:center; gap:0 !important; }
+#individual-o-global-nav .individual-o-nav-icon {
+  width:14px; height:14px; flex:0 0 14px; vertical-align:middle; margin-right:8px !important;
+}
+@media(max-width:900px) {
+  #individual-o-global-page { padding:16px; }
+  .io-global-filters { grid-template-columns:repeat(2,minmax(130px,1fr)); }
+  .io-global-row { grid-template-columns:1fr; gap:7px; }
+  .io-global-actions { justify-content:flex-end; }
+}
+@media(max-width:520px) { .io-global-filters { grid-template-columns:1fr; } }
+
+
+/* Individual O 0.7.17 — native Stash React route */
+.io-native-page { padding-top: 1.25rem; padding-bottom: 2rem; }
+.io-native-page .io-native-filter-grid {
+  display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:1rem;
+}
+.io-native-page .io-native-filter { margin:0; min-width:0; }
+.io-native-page .io-native-reset-wrap { display:flex; align-items:end; }
+.io-native-page .io-native-reset-wrap .btn { width:100%; }
+.io-native-count { font-size:.9rem; color:var(--bs-secondary-color, #999); }
+.io-native-results { display:flex; flex-direction:column; }
+.io-native-result {
+  display:grid; grid-template-columns:180px minmax(0,1fr) auto; align-items:center;
+  gap:1rem; padding:1rem 0; border-bottom:1px solid var(--bs-border-color,rgba(128,128,128,.25));
+}
+.io-native-thumb-link { display:block; width:180px; aspect-ratio:16/9; overflow:hidden; border-radius:5px; background:rgba(128,128,128,.13); }
+.io-native-thumb { width:100%; height:100%; object-fit:cover; display:block; }
+.io-native-thumb-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--bs-secondary-color,#999); font-size:2rem; }
+.io-native-result-content { min-width:0; }
+.io-native-result-performers { font-weight:600; margin-bottom:.25rem; }
+.io-native-scene-link { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.io-native-result-meta { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin-top:.4rem; font-size:.8rem; color:var(--bs-secondary-color,#999); }
+.io-native-time { padding:0; font-size:inherit; }
+.io-native-marker-label { padding:.15rem .4rem; border-radius:4px; background:rgba(128,128,128,.14); }
+.io-native-actions { display:flex; gap:.4rem; }
+@media(max-width:900px) {
+  .io-native-page .io-native-filter-grid { grid-template-columns:repeat(2,minmax(130px,1fr)); }
+  .io-native-result { grid-template-columns:140px minmax(0,1fr); }
+  .io-native-thumb-link { width:140px; }
+  .io-native-actions { grid-column:2; justify-content:flex-end; }
+}
+@media(max-width:520px) {
+  .io-native-page .io-native-filter-grid { grid-template-columns:1fr; }
+  .io-native-result { grid-template-columns:100px minmax(0,1fr); gap:.65rem; }
+  .io-native-thumb-link { width:100px; }
+  .io-native-actions { grid-column:1 / -1; }
+}
+
+
+/* Individual O 0.7.20 — marker thumbnails in scene sidebar and manager */
+.individual-o-scene-sidebar-row {
+  display:flex; align-items:flex-start; gap:9px;
+}
+.individual-o-sidebar-marker-thumb {
+  display:block; flex:0 0 84px; width:84px; height:48px; object-fit:cover;
+  border-radius:4px; background:rgba(128,128,128,.15);
+}
+.individual-o-sidebar-marker-thumb.is-unavailable { display:none; }
+.individual-o-scene-sidebar-entry { min-width:0; flex:1; }
+.individual-o-history-row {
+  display:flex; align-items:center; gap:12px;
+}
+.individual-o-history-marker-thumb {
+  display:block; flex:0 0 112px; width:112px; height:63px; object-fit:cover;
+  border-radius:5px; background:rgba(128,128,128,.15);
+}
+.individual-o-history-marker-thumb.is-unavailable { display:none; }
+.individual-o-history-main { min-width:0; flex:1; }
+@media(max-width:520px) {
+  .individual-o-sidebar-marker-thumb { flex-basis:68px; width:68px; height:40px; }
+  .individual-o-history-marker-thumb { flex-basis:84px; width:84px; height:48px; }
+}
+
+
+/* Individual O 0.7.21 — sidebar history sizing aligned with Stash reading history */
+.individual-o-scene-sidebar-row {
+  gap:10px;
+  padding:8px 7px;
+  font-size:14px;
+}
+.individual-o-sidebar-marker-thumb {
+  flex:0 0 124px;
+  width:124px;
+  height:70px;
+}
+.individual-o-scene-sidebar-date {
+  font-size:14px;
+  line-height:1.35;
+  font-weight:600;
+}
+.individual-o-scene-sidebar-timestamp {
+  margin-top:5px;
+  padding:3px 7px;
+  font-size:12px;
+}
+.individual-o-scene-sidebar-performers {
+  margin-top:4px;
+  font-size:13px;
+  line-height:1.35;
+}
+.individual-o-scene-sidebar-empty {
+  font-size:14px;
+}
+@media(max-width:520px) {
+  .individual-o-sidebar-marker-thumb {
+    flex-basis:108px;
+    width:108px;
+    height:61px;
+  }
+}
+
+
+/* Individual O 0.7.24 — scene-native tab */
+#individual-o-scene-sidebar-history { padding-top: .75rem; }
+
+/* Individual O 0.7.26 — marker thumbnails enlarged in scene tab */
+#individual-o-scene-sidebar-history .individual-o-sidebar-marker-thumb {
+  flex: 0 0 150px;
+  width: 150px;
+  height: 84px;
+}
+@media (max-width: 520px) {
+  #individual-o-scene-sidebar-history .individual-o-sidebar-marker-thumb {
+    flex-basis: 120px;
+    width: 120px;
+    height: 68px;
+  }
+}
+
+
+/* Individual O 0.7.27 — larger clickable marker thumbnails */
+#individual-o-scene-sidebar-history .individual-o-marker-thumb-button {
+  display:block; flex:0 0 170px; width:170px; min-width:170px; max-width:none;
+  height:96px; padding:0; margin:0; border:0; background:transparent;
+  cursor:pointer; line-height:0;
+}
+#individual-o-scene-sidebar-history .individual-o-marker-thumb-button .individual-o-sidebar-marker-thumb {
+  display:block; width:170px; min-width:170px; max-width:none; height:96px;
+  object-fit:cover; border-radius:5px;
+}
+#individual-o-scene-sidebar-history .individual-o-marker-thumb-button:focus-visible {
+  outline:2px solid var(--primary); outline-offset:2px;
+}
+@media (max-width:520px) {
+  #individual-o-scene-sidebar-history .individual-o-marker-thumb-button {
+    flex-basis:140px; width:140px; min-width:140px; height:79px;
+  }
+  #individual-o-scene-sidebar-history .individual-o-marker-thumb-button .individual-o-sidebar-marker-thumb {
+    width:140px; min-width:140px; height:79px;
+  }
+}
+
+
+/* Global history performer autocomplete */
+.io-global-performer-control { position:relative; width:100%; }
+.io-global-performer-control > input { width:100%; }
+.io-global-performer-suggestions {
+  position:absolute; z-index:10050; top:calc(100% + 4px); left:0; right:0;
+  max-height:320px; overflow-y:auto; border:1px solid var(--bs-border-color,#48515b);
+  border-radius:6px; background:var(--bs-card-bg,#343f4b);
+  box-shadow:0 8px 22px rgba(0,0,0,.35);
+}
+.io-global-performer-suggestions[hidden] { display:none; }
+.io-global-performer-option {
+  display:flex; align-items:center; gap:10px; width:100%; padding:7px 10px;
+  border:0; border-bottom:1px solid rgba(255,255,255,.06); background:transparent;
+  color:inherit; text-align:left; cursor:pointer;
+}
+.io-global-performer-option:hover,.io-global-performer-option:focus {
+  background:rgba(110,168,254,.18); outline:none;
+}
+.io-global-performer-option img {
+  width:38px; height:48px; object-fit:cover; flex:0 0 38px; border-radius:3px;
+  background:rgba(0,0,0,.18);
+}
+.io-global-performer-option span { font-size:13px; font-weight:500; }
+.io-global-performer-empty { padding:12px; color:var(--bs-secondary-color,#b7bec7); font-size:12px; }
+
+
+/* Global history performer autocomplete dropdown */
+.io-global-performer-control { position:relative; width:100%; }
+.io-global-performer-control > input { width:100%; }
+.io-global-performer-suggestions {
+  position:absolute; z-index:10050; top:calc(100% + 4px); left:0; right:0;
+  max-height:320px; overflow-y:auto; border:1px solid var(--bs-border-color,#48515b);
+  border-radius:6px; background:var(--bs-card-bg,#343f4b);
+  box-shadow:0 8px 22px rgba(0,0,0,.35);
+}
+.io-global-performer-suggestions[hidden] { display:none; }
+.io-global-performer-option {
+  display:flex; align-items:center; gap:10px; width:100%; padding:7px 10px;
+  border:0; border-bottom:1px solid rgba(255,255,255,.06); background:transparent;
+  color:inherit; text-align:left; cursor:pointer;
+}
+.io-global-performer-option:hover,.io-global-performer-option:focus { background:rgba(110,168,254,.18); outline:none; }
+.io-global-performer-option img { width:38px; height:48px; object-fit:cover; flex:0 0 38px; border-radius:3px; background:rgba(0,0,0,.18); }
+.io-global-performer-option span { font-size:13px; font-weight:500; }
+.io-global-performer-empty { padding:12px; color:var(--bs-secondary-color,#b7bec7); font-size:12px; }
+
+
+/* Performer autocomplete in the native global-history React route */
+.io-native-performer-autocomplete { position: relative; }
+.io-native-performer-suggestions {
+  position: absolute; z-index: 1100; top: calc(100% + 3px); left: 0; right: 0;
+  max-height: 300px; overflow-y: auto; background: var(--bs-body-bg, #252a30);
+  border: 1px solid var(--bs-border-color, #495057); border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.io-native-performer-option {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px;
+  border: 0; border-bottom: 1px solid var(--bs-border-color, #495057);
+  color: var(--bs-body-color, #f8f9fa); background: transparent; text-align: left;
+  cursor: pointer;
+}
+.io-native-performer-option:hover, .io-native-performer-option:focus {
+  background: var(--bs-tertiary-bg, #3b4652); outline: none;
+}
+.io-native-performer-option img {
+  display: block; width: 36px; height: 46px; object-fit: cover; flex: 0 0 36px;
+  border-radius: 3px; background: rgba(255,255,255,.08);
+}
+.io-native-performer-option span { font-size: 14px; }
+.io-native-performer-status { position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--bs-secondary-color); font-size:12px; pointer-events:none; }
+
+
+/* Let the performer suggestion menu extend below the filter card instead of
+   being clipped by the Bootstrap card/body. Keep it tall enough to browse. */
+.io-native-page .card.mb-3,
+.io-native-page .card.mb-3 > .card-body,
+.io-native-page .io-native-filter-grid {
+  overflow: visible !important;
+}
+.io-native-page .card.mb-3 { position: relative; z-index: 5; }
+.io-native-page .io-native-filter-grid { position: relative; }
+.io-native-page .io-native-performer-filter {
+  position: relative;
+  z-index: 30;
+}
+.io-native-performer-autocomplete {
+  position: relative;
+  z-index: 31;
+}
+.io-native-performer-suggestions {
+  z-index: 2000;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+
+/* 0.7.34 — dropdown positioned against the viewport, outside clipped cards */
+.io-native-performer-suggestions {
+  position: fixed !important;
+  z-index: 100000 !important;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+
+/* 0.7.35 — scene autocomplete uses the same full-height viewport menu */
+.io-native-scene-suggestions {
+  position: fixed !important;
+  z-index: 100001 !important;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+.io-native-scene-option img {
+  width: 64px;
+  height: 46px;
+  flex-basis: 64px;
+  object-fit: cover;
+}
+.io-native-scene-option span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.io-native-scene-option small {
+  display: block;
+  margin-top: 2px;
+  color: var(--bs-secondary-color, #adb5bd);
+  font-size: 11px;
+}
+
+
+/* 0.7.38 — global history results displayed as a Stash-like responsive card grid */
+.io-native-results-toolbar {
+  display:grid;
+  grid-template-columns:minmax(120px,1fr) auto auto auto;
+  align-items:center;
+  column-gap:22px;
+  row-gap:8px;
+  margin:12px 0 16px;
+}
+.io-native-count { grid-column:1 / -1; }
+.io-native-pagination-top { justify-content:center; padding:0; margin:0; white-space:nowrap; }
+.io-native-page-size { display:flex; align-items:center; gap:8px; font-size:.875rem; }
+.io-native-page-size select { width:145px; }
+.io-native-page-size .io-native-custom-size { width:90px; }
+.io-native-results {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+  gap:12px;
+  align-items:stretch;
+}
+.io-native-result {
+  display:flex; flex-direction:column; min-width:0; overflow:hidden;
+  padding:0; border:1px solid var(--bs-border-color,rgba(128,128,128,.25));
+  border-radius:5px; background:var(--bs-card-bg,var(--bs-tertiary-bg,#303943));
+}
+.io-native-thumb-link {
+  display:block; width:100%; aspect-ratio:16/9; height:auto; flex:0 0 auto;
+  overflow:hidden; border-radius:0; background:rgba(128,128,128,.13);
+}
+.io-native-thumb { width:100%; height:100%; object-fit:cover; display:block; }
+.io-native-result-content { display:flex; flex-direction:column; gap:5px; padding:10px 11px 6px; flex:1; }
+.io-native-result-performers { font-size:1rem; line-height:1.25; }
+.io-native-scene-link { white-space:normal; overflow-wrap:anywhere; line-height:1.3; }
+.io-native-result-meta { margin-top:3px; }
+.io-native-actions { display:flex; justify-content:flex-end; gap:6px; padding:0 10px 10px; margin-top:auto; }
+.io-native-pagination {
+  display:flex; justify-content:center; align-items:center; gap:7px; padding:20px 0 8px;
+}
+.io-native-pagination span { padding:0 8px; font-size:.9rem; }
+@media(max-width:600px) {
+  .io-native-results { grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:8px; }
+  .io-native-results-toolbar { align-items:flex-start; }
+  .io-native-page-size { flex-wrap:wrap; }
+}
+
+/* 0.7.40 — dynamic marker previews */
+.io-native-dynamic-thumb { object-fit:cover; background:#111; }
+.io-native-thumb-link:hover .io-native-dynamic-thumb { cursor:pointer; }
+
+
+/* 0.7.42 — user-adjustable marker card dimensions on global history */
+.io-native-card-size-control {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:220px;
+  font-size:.875rem;
+}
+.io-native-card-size-control label {
+  margin:0;
+  white-space:nowrap;
+}
+.io-native-card-size-control input[type="range"] {
+  width:110px;
+  min-width:80px;
+  accent-color:var(--bs-primary,#0d6efd);
+  cursor:pointer;
+}
+.io-native-card-size-control span {
+  min-width:48px;
+  color:var(--bs-secondary-color,#adb5bd);
+  font-variant-numeric:tabular-nums;
+}
+@media(max-width:600px) {
+  .io-native-card-size-control { width:100%; }
+  .io-native-card-size-control input[type="range"] { flex:1; }
+}
+
+/* 0.7.43 — pagination also available above the results */
+.io-native-pagination-top {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+/* 0.7.44 — single aligned toolbar row */
+@media(max-width:900px) {
+  .io-native-results-toolbar {
+    grid-template-columns:1fr 1fr;
+    column-gap:12px;
+  }
+  .io-native-count { grid-column:1 / -1; }
+  .io-native-pagination-top { grid-column:1 / -1; grid-row:auto; }
+}
+@media(max-width:600px) {
+  .io-native-results-toolbar { grid-template-columns:1fr; }
+  .io-native-pagination-top, .io-native-card-size-control, .io-native-page-size {
+    grid-column:1; justify-self:stretch;
+  }
+  .io-native-pagination-top { justify-content:center; }
+}
+
+/* Explicit Splooge marker selection in the O manager */
+.individual-o-marker-section { margin:0 0 16px; }
+.individual-o-marker-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:220px; overflow:auto; }
+.individual-o-marker-choice { display:flex; align-items:center; gap:9px; min-width:0; padding:7px; border:1px solid #4b5563; border-radius:7px; background:#343b48; cursor:pointer; }
+.individual-o-marker-choice:has(input:checked) { border-color:#72b58c; background:#35483f; }
+.individual-o-marker-choice input { flex:0 0 auto; margin:0 2px 0 0; }
+.individual-o-marker-choice img { width:76px; height:46px; object-fit:cover; border-radius:4px; background:#202630; }
+.individual-o-marker-choice span { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.individual-o-marker-choice strong { color:#f1f5f9; font-size:12px; }
+.individual-o-marker-choice small { color:#aeb9c7; font-size:11px; font-variant-numeric:tabular-nums; }
+@media(max-width:600px) { .individual-o-marker-choices { grid-template-columns:1fr; } }
+
+/* Compact scene-header shortcut; the full launcher lives only in O individuel. */
+.individual-o-header-launcher { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; margin-left:7px; padding:3px; border:1px solid #477b68; border-radius:7px; background:#203d35; color:#e7fff3; cursor:pointer; vertical-align:middle; }
+.individual-o-header-launcher:hover { background:#2a5145; border-color:#65a58b; }
+.individual-o-header-launcher .individual-o-symbol { width:22px; height:22px; margin:0; }
+
+/* Image-linked Individual O entries */
+.io-global-image-thumb { width: 88px; height: 66px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; }
+.individual-o-history-row > img.individual-o-history-marker-thumb { width: 120px; height: 76px; object-fit: cover; border-radius: 5px; flex: 0 0 auto; }
+
+
+/* Image page: use the same dedicated tab layout as scene pages. */
+#individual-o-image-sidebar-history { margin-top:8px; padding:8px 0 10px; border-top:1px solid var(--bs-border-color,#495057); }
+#individual-o-image-sidebar-history .individual-o-scene-sidebar-history-launcher { margin:0 0 14px; }
+#individual-o-image-sidebar-history .individual-o-launcher { width:100%; }
+#individual-o-image-sidebar-history .individual-o-scene-sidebar-row { display:flex; align-items:center; gap:10px; }
+#individual-o-image-sidebar-history .individual-o-sidebar-marker-thumb { width:120px; max-width:32%; height:auto; aspect-ratio:16/9; object-fit:cover; border-radius:5px; }
+
+
+/* Image toolbar: keep the Individual O shortcut inside the native action group. */
+.image-toolbar .image-toolbar-group > #individual-o-image-header-launcher {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 4px;
+  vertical-align: middle;
+}
+.image-tabs .nav-tabs [data-individual-o-image-tab] { cursor: pointer; }
+#individual-o-image-sidebar-history-pane { padding-top: 8px; }
+
+
+/* 0.7.85 — separate scene and image history tabs */
+.io-history-tabs { display:flex; gap:6px; border-bottom:1px solid var(--bs-border-color,rgba(128,128,128,.25)); }
+.io-history-tabs .nav-link { cursor:pointer; color:var(--bs-secondary-color,#adb5bd); background:transparent; border:1px solid transparent; border-bottom:0; padding:.55rem 1rem; }
+.io-history-tabs .nav-link.active { color:var(--bs-body-color,#fff); background:var(--bs-card-bg,var(--bs-tertiary-bg,#303943)); border-color:var(--bs-border-color,rgba(128,128,128,.25)); }
+
+
+/* 0.7.89 — afficher les images entières dans l'historique global.
+   Les ratios d'origine sont conservés : aucune découpe avec object-fit:cover. */
+.io-native-page .io-native-thumb-link {
+  aspect-ratio: auto !important;
+  height: auto !important;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(0,0,0,.18);
+}
+.io-native-page .io-native-thumb,
+.io-native-page .io-native-dynamic-thumb {
+  display: block;
+  width: 100%;
+  height: auto !important;
+  max-height: 520px;
+  object-fit: contain !important;
+  object-position: center;
+}
+
+
+/* v0.7.106 — Exact native Stash three-droplet path inside a white outline circle. */
+.individual-o-icon {
+  display:inline-block;
+  width:18px;
+  height:18px;
+  flex:0 0 18px;
+  vertical-align:-4px;
+  fill:currentColor;
+}
+.individual-o-launcher-icon { width:20px; height:20px; flex-basis:20px; vertical-align:middle; }
+.individual-o-symbol {
+  width:auto; height:auto; min-width:0; min-height:0;
+  border-radius:0; padding:0; background:transparent; color:#fff;
+  font-size:0; line-height:1;
+}
+.individual-o-launcher { color:var(--bs-body-color, #f5f8fa); }
+.individual-o-launcher:hover { color:#fff; }
+.individual-o-inline-count,
+.individual-o-count {
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  min-width:0; height:auto; margin-left:5px; padding:0;
+  border:0; border-radius:0; background:transparent; color:var(--bs-body-color, #f5f8fa);
+  font-size:inherit; line-height:1.2;
+}
+.individual-o-inline-count strong,
+.individual-o-count strong { color:inherit; font-weight:400; }
+.individual-o-profile-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  border:0; border-radius:0; padding:0; background:transparent;
+  color:var(--bs-body-color, #f5f8fa); cursor:pointer;
+  font-size:14px; line-height:1.2;
+}
+.individual-o-profile-badge strong { display:inline; min-width:0; height:auto; padding:0; border-radius:0; background:transparent; color:inherit; font-size:inherit; font-weight:400; }
+.performer-card .card-popovers .individual-o-card-pill {
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  margin:2px 0 2px 7px; padding:0; min-height:0;
+  border:0; border-radius:0; background:transparent; color:var(--bs-body-color, #f5f8fa);
+  font-size:12px; line-height:1.2;
+}
+.performer-card .card-popovers .individual-o-card-pill:hover { border:0; background:transparent; color:#fff; }
+.performer-card .card-popovers .individual-o-card-pill strong { color:inherit; font-weight:400; }
+.individual-o-card-mark { display:none !important; }
+.individual-o-marker-count {
+  display:inline-flex; align-items:center; gap:4px; vertical-align:middle;
+  margin-left:7px; padding:0; border:0; border-radius:0;
+  background:transparent; color:var(--bs-body-color, #f5f8fa);
+  font-size:11px; font-weight:400; line-height:1.4;
+}
+.individual-o-marker-count strong { font-weight:400; }
+.individual-o-marker-preview-count {
+  display:inline-flex !important; align-items:center !important; gap:4px !important;
+  min-height:0 !important; padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important;
+  background:transparent !important; background-color:transparent !important;
+  color:#fff !important; font:400 12px/1.2 sans-serif !important;
+  box-shadow:none !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 3px rgba(0,0,0,.8) !important;
+}
+.individual-o-scene-sidebar-heading .badge { display:none; }
+
+
+/* Native-looking confirmation dialogs, visually integrated with Stash. */
+.individual-o-dialog-backdrop { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(0,0,0,.62); }
+.individual-o-dialog { width:min(440px,100%); color:#e9edf3; background:#252d38; border:1px solid #46515f; border-radius:12px; box-shadow:0 18px 60px rgba(0,0,0,.55); overflow:hidden; }
+.individual-o-dialog-header { display:flex; align-items:center; justify-content:space-between; padding:13px 18px; border-bottom:1px solid #414b58; }
+.individual-o-dialog-close { border:0; padding:0 3px; color:#cbd5e1; background:transparent; font-size:25px; line-height:1; cursor:pointer; }
+.individual-o-dialog-body { padding:18px 20px 8px; }
+.individual-o-dialog-body h3 { margin:0 0 10px; color:#fff; font-size:18px; font-weight:700; }
+.individual-o-dialog-body p { margin:0 0 9px; color:#e1e7ef; font-size:14px; line-height:1.5; }
+.individual-o-dialog-body .individual-o-dialog-detail { color:#aeb9c7; font-size:12px; }
+.individual-o-dialog-actions { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:8px; padding:12px 20px 18px; }
+.individual-o-dialog-button { min-height:34px; padding:7px 13px; border:1px solid #536173; border-radius:6px; color:#e9edf3; background:#3a4655; font-size:13px; font-weight:600; cursor:pointer; }
+.individual-o-dialog-button:hover { background:#465568; }
+.individual-o-dialog-button.is-primary { border-color:#477b68; color:#fff; background:#28734f; }
+.individual-o-dialog-button.is-primary:hover { background:#328b60; }
+.individual-o-dialog-button.is-danger { border-color:#a94e43; color:#fff; background:#a94438; }
+.individual-o-dialog-button.is-danger:hover { background:#c65346; }
+.individual-o-dialog-button:focus-visible,.individual-o-dialog-close:focus-visible { outline:2px solid #8dbbff; outline-offset:2px; }
+@media(max-width:480px) { .individual-o-dialog-actions { justify-content:stretch; } .individual-o-dialog-button { flex:1 1 auto; } }
+
+/* Hide only Stash's native performer O counter when the matching plugin setting is enabled. */
+.individual-o-native-o-counter-hidden { display:none !important; }

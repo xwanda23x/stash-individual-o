@@ -54,6 +54,46 @@
   const PROMPT_MARKER_CREATION_SETTING = 'promptMarkerCreation';
   const NEW_MARKER_TITLE_SETTING = 'newMarkerTitle';
   const NEW_MARKER_PRIMARY_TAG_SETTING = 'newMarkerPrimaryTag';
+
+  const DEFAULT_ON_SETTINGS = [
+    PROMPT_MARKER_CREATION_SETTING,
+    CLASSIC_IMAGE_SYNC_SETTING,
+    CLASSIC_SCENE_SYNC_SETTING
+  ];
+  let defaultSettingsInitializationPromise = null;
+
+  async function initializeDefaultOnSettings() {
+    if (defaultSettingsInitializationPromise) return defaultSettingsInitializationPromise;
+    defaultSettingsInitializationPromise = (async () => {
+      try {
+        const data = await gql(`{ configuration { plugins } }`);
+        const plugins = data && data.configuration && data.configuration.plugins;
+        const existing = plugins && plugins[SETTINGS_PLUGIN_ID];
+        const config = existing && typeof existing === 'object' ? existing : {};
+        const merged = Object.assign({}, config);
+        let changed = false;
+
+        DEFAULT_ON_SETTINGS.forEach((key) => {
+          // Only initialize settings that have never been saved. Explicit user
+          // choices (including false) must survive every plugin update.
+          if (!Object.prototype.hasOwnProperty.call(config, key)) {
+            merged[key] = true;
+            changed = true;
+          }
+        });
+
+        if (changed) {
+          await gql(`mutation IndividualOInitializeDefaultSettings($input: Map!) {
+            configurePlugin(plugin_id: "IndividualO", input: $input)
+          }`, { input: merged });
+          console.info('[Individual O] Default settings initialized.');
+        }
+      } catch (error) {
+        console.warn('[Individual O] Unable to initialize default settings; existing settings were left unchanged.', error);
+      }
+    })();
+    return defaultSettingsInitializationPromise;
+  }
   let markerCreationPromptEnabled = false;
   let newMarkerTitle = '';
   let newMarkerPrimaryTag = '';
@@ -3505,10 +3545,16 @@
 
   function init() {
     ioInitializeLocalization();
-    // Materialize the default ON value in Stash's plugin settings so the UI
-    // switch matches the legacy behavior on existing installations.
-    isClassicSceneSyncEnabled();
-    loadMarkerSettings();
+    // Initialize the three recommended options only when Stash has no saved
+    // value for them. Explicit user choices are never overwritten on update.
+    initializeDefaultOnSettings().then(() => {
+      classicSceneSyncSettingReadAt = 0;
+      classicImageSyncSettingReadAt = 0;
+      markerSettingsReadAt = 0;
+      isClassicSceneSyncEnabled();
+      isClassicImageSyncEnabled();
+      loadMarkerSettings(true);
+    });
     installIndividualSortInterceptor();
     if (observer) observer.disconnect();
     observer = new MutationObserver(scheduleScan);

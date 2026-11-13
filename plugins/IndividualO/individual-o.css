@@ -787,3 +787,27 @@
 
 /* Hide only Stash's native performer O counter when the matching plugin setting is enabled. */
 .individual-o-native-o-counter-hidden { display:none !important; }
+
+/* 0.8.3 — clickable thumbnails in performer Individual O history */
+.individual-o-history-thumb-link {
+  display:block;
+  flex:0 0 112px;
+  width:112px;
+  line-height:0;
+  border-radius:5px;
+  overflow:hidden;
+}
+.individual-o-history-thumb-link:hover {
+  opacity:.86;
+}
+.individual-o-history-thumb-link:focus-visible {
+  outline:2px solid #79b8ff;
+  outline-offset:2px;
+}
+.individual-o-history-main {
+  min-width:0;
+  flex:1;
+}
+@media(max-width:520px) {
+  .individual-o-history-thumb-link { flex-basis:84px; width:84px; }
+}

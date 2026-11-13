@@ -1605,7 +1605,7 @@
   async function loadPerformerHistory(performerId) {
     const sceneData = await gql(`query IndividualOPerformerScenes($performerId: ID!) {
       findScenes(scene_filter: { performers: { value: [$performerId], modifier: INCLUDES } }, filter: { per_page: -1 }) {
-        scenes { id title date custom_fields }
+        scenes { id title date custom_fields scene_markers { id title seconds } }
       }
     }`, { performerId });
     let imageData = null;
@@ -1629,7 +1629,18 @@
       if (!Array.isArray(history)) return;
       history.forEach(entry => {
         if ((entry.performer_ids || []).map(String).includes(String(performerId))) {
-          entries.push({ id: entry.id, date: entry.date, entity_type: 'scene', scene_id: String(scene.id), scene_title: scene.title || ('Scène #' + scene.id), scene_date: scene.date || '' });
+          const marker = entry.marker_id
+            ? (scene.scene_markers || []).find(item => String(item.id) === String(entry.marker_id))
+            : null;
+          entries.push({
+            id: entry.id, date: entry.date, entity_type: 'scene',
+            scene_id: String(scene.id),
+            scene_title: scene.title || ('Scène #' + scene.id),
+            scene_date: scene.date || '',
+            marker_id: marker ? String(marker.id) : (entry.marker_id ? String(entry.marker_id) : null),
+            marker_title: marker ? (marker.title || entry.marker_title || 'Marqueur') : (entry.marker_title || ''),
+            marker_seconds: marker ? Number(marker.seconds) : (entry.marker_seconds != null ? Number(entry.marker_seconds) : entry.timestamp)
+          });
         }
       });
     });
@@ -1795,11 +1806,20 @@
     const backdrop = document.createElement('div');
     backdrop.id = 'individual-o-modal-backdrop';
     backdrop.className = 'individual-o-backdrop';
-    const rows = entries.length ? entries.map(entry =>
-      '<div class="individual-o-history-row">' + (entry.entity_type === 'image' ? '<img class="individual-o-history-marker-thumb" src="/image/' + encodeURIComponent(entry.image_id) + '/thumbnail" alt="">' : '') + '<div><div class="individual-o-history-date">' + escapeHTML(formatDate(entry.date)) + '</div>' +
-      '<a class="individual-o-scene-link" href="/' + (entry.entity_type === 'image' ? 'images/' + encodeURIComponent(entry.image_id) : 'scenes/' + encodeURIComponent(entry.scene_id)) + '">' + escapeHTML(entry.scene_title) + '</a></div>' +
-      '</div>'
-    ).join('') : '<p class="individual-o-empty">Aucun O individuel enregistré pour ce performeur.</p>';
+    const rows = entries.length ? entries.map(entry => {
+      const isImage = entry.entity_type === 'image';
+      const entityUrl = isImage
+        ? '/images/' + encodeURIComponent(entry.image_id)
+        : '/scenes/' + encodeURIComponent(entry.scene_id);
+      const thumb = isImage
+        ? '<a class="individual-o-history-thumb-link" href="' + entityUrl + '" title="Ouvrir l’image"><img class="individual-o-history-marker-thumb" src="/image/' + encodeURIComponent(entry.image_id) + '/thumbnail" alt="" loading="lazy"></a>'
+        : (entry.marker_id
+          ? '<a class="individual-o-history-thumb-link" href="' + entityUrl + (entry.marker_seconds != null ? '?t=' + encodeURIComponent(Math.floor(Number(entry.marker_seconds))) : '') + '" title="Ouvrir la scène au marqueur ' + escapeHTML(entry.marker_title || '') + '"><img class="individual-o-history-marker-thumb" src="/scene/' + encodeURIComponent(entry.scene_id) + '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/screenshot" alt="" loading="lazy"></a>'
+          : '');
+      return '<div class="individual-o-history-row">' + thumb + '<div class="individual-o-history-main"><div class="individual-o-history-date">' + escapeHTML(formatDate(entry.date)) + '</div>' +
+        '<a class="individual-o-scene-link" href="' + entityUrl + '">' + escapeHTML(entry.scene_title) + '</a></div>' +
+        '</div>';
+    }).join('') : '<p class="individual-o-empty">Aucun O individuel enregistré pour ce performeur.</p>';
     backdrop.innerHTML = '<section class="individual-o-modal" role="dialog" aria-modal="true" aria-label="Historique des O individuels">' +
       '<header class="individual-o-header"><div><div class="individual-o-kicker">INDIVIDUAL O</div><h2>Historique individuel</h2></div><button class="individual-o-close" type="button" aria-label="Fermer">×</button></header>' +
       '<div class="individual-o-content"><div class="individual-o-scene-title">' + entries.length + ' O individuel(s)</div>' + rows + '</div></section>';

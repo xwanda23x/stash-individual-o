@@ -997,7 +997,8 @@
           // Un historique représente un O, quel que soit le nombre de performeurs associés.
           counts.set(markerId, (counts.get(markerId) || 0) + 1);
         });
-        return { scene, counts };      });
+        return { scene, counts };
+      });
       cached = { promise, expiresAt: Date.now() + 15000 };
       markerCounterCache.set(String(sceneId), cached);
     }
@@ -1996,7 +1997,8 @@
       if (operations && existing.nextElementSibling !== operations) actionGroup.insertBefore(existing, operations);
       return;
     }
-    if (existing) existing.remove();    const button = document.createElement('button');
+    if (existing) existing.remove();
+    const button = document.createElement('button');
     button.type = 'button';
     button.id = 'individual-o-image-header-launcher';
     button.className = 'individual-o-header-launcher minimal btn btn-secondary';
@@ -2995,7 +2997,8 @@
             mode: pageSizeMode,
             custom: customPageSize
           }));
-        } catch (_) {}      }, [pageSizeMode, customPageSize]);
+        } catch (_) {}
+      }, [pageSizeMode, customPageSize]);
 
       React.useEffect(() => {
         let cancelled = false;

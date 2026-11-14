@@ -1,6 +1,5 @@
 Version 0.8.5
-- Renforce la synchronisation des O classiques natifs Stash lors de la création d’un O individuel, sur les scènes et les images selon les paramètres configurés.
-- Corrige la gestion des compteurs et des historiques ; les données existantes sont conservées.
+- Amélioration des traductions anglaises de l’interface.
 
 Version 0.8.4
 - Renforce la gestion du compteur Individual O sur les fiches performeurs : invalidation des rendus asynchrones obsolètes et suppression de toutes les insertions en double.

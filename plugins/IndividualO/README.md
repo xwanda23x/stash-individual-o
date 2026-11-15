@@ -1,3 +1,5 @@
+- Lorsque le titre du marqueur ou le tag principal est absent, la confirmation « Enregistrer sans marqueur » ou « Annuler » est maintenant affichée même si la proposition de création automatique est désactivée.
+- When the marker title or primary tag is missing, the “Save without marker” / “Cancel” confirmation is now shown even if automatic marker creation is disabled.
 ## Version 0.8.10
 - Lorsque aucun marqueur n'est sélectionné, l'enregistrement sans marqueur capture désormais toujours l'image vidéo actuelle, même si la proposition de création de marqueur est désactivée.
 - Si la proposition est activée mais que le titre du marqueur ou son tag principal n'est pas configuré, le plugin propose tout de même « Enregistrer sans marqueur » ou « Annuler » ; la création de marqueur n'est proposée que lorsque les deux paramètres sont renseignés.

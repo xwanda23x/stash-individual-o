@@ -2263,7 +2263,7 @@
         // If the marker-creation prompt is disabled, the no-marker save remains
         // automatic, but it must never silently skip the snapshot.
         let saveWithoutMarkerChosen = !selectedMarkerIdBeforeSave;
-        if (!selectedMarkerIdBeforeSave && markerCreationPromptEnabled) {
+        if (!selectedMarkerIdBeforeSave && (markerCreationPromptEnabled || !newMarkerTitle || !newMarkerPrimaryTag)) {
           const canCreateMarker = Boolean(newMarkerTitle && newMarkerPrimaryTag);
           const markerChoice = await showIndividualDialog({
             title: canCreateMarker

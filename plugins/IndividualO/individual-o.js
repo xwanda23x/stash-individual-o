@@ -2259,19 +2259,29 @@
         const button = event.currentTarget;
         const selectedMarkerIdBeforeSave = content.querySelector('input[name="individual-o-marker-choice"]:checked')?.value || '';
         let createMarkerAtCurrentTime = false;
-        let saveWithoutMarkerChosen = false;
-        if (!selectedMarkerIdBeforeSave && markerCreationPromptEnabled && newMarkerTitle && newMarkerPrimaryTag) {
+        // Any save without a selected marker must capture the current video frame.
+        // If the marker-creation prompt is disabled, the no-marker save remains
+        // automatic, but it must never silently skip the snapshot.
+        let saveWithoutMarkerChosen = !selectedMarkerIdBeforeSave;
+        if (!selectedMarkerIdBeforeSave && markerCreationPromptEnabled) {
+          const canCreateMarker = Boolean(newMarkerTitle && newMarkerPrimaryTag);
           const markerChoice = await showIndividualDialog({
-            title: ioIsFrench
-  ? 'Aucun marqueur « ' + newMarkerTitle + ' » sélectionné'
-  : 'No « ' + newMarkerTitle + ' » marker selected',
-            message: 'Comment veux-tu enregistrer cet O individuel ?',
-            detail: ioIsFrench
-  ? 'Tu peux créer automatiquement un marqueur « ' + newMarkerTitle + ' » associé au tag principal « ' + newMarkerPrimaryTag + ' » à la position actuelle de la vidéo, enregistrer l’O sans marqueur, ou annuler.'
-  : 'You can automatically create a « ' + newMarkerTitle + ' » marker associated with the primary tag « ' + newMarkerPrimaryTag + ' » at the current video position, save the O without a marker, or cancel.',
+            title: canCreateMarker
+              ? (ioIsFrench ? 'Aucun marqueur « ' + newMarkerTitle + ' » sélectionné' : 'No « ' + newMarkerTitle + ' » marker selected')
+              : (ioIsFrench ? 'Aucun marqueur disponible' : 'No marker available'),
+            message: ioIsFrench
+              ? 'Comment veux-tu enregistrer cet O individuel ?'
+              : 'How would you like to record this individual O?',
+            detail: canCreateMarker
+              ? (ioIsFrench
+                  ? 'Tu peux créer automatiquement un marqueur « ' + newMarkerTitle + ' » associé au tag principal « ' + newMarkerPrimaryTag + ' » à la position actuelle de la vidéo, enregistrer l’O sans marqueur, ou annuler.'
+                  : 'You can automatically create a « ' + newMarkerTitle + ' » marker associated with the primary tag « ' + newMarkerPrimaryTag + ' » at the current video position, save the O without a marker, or cancel.')
+              : (ioIsFrench
+                  ? 'Le titre du marqueur et/ou son tag principal ne sont pas renseignés dans les paramètres. Tu peux enregistrer l’O avec une capture vidéo, ou annuler.'
+                  : 'The marker title and/or primary tag are not configured. You can save the O with a video snapshot, or cancel.'),
             buttons: [
-              { value: 'create', label: ioIsFrench ? 'Créer le marqueur et l’O' : 'Create marker and O', className: 'is-primary' },
-              { value: 'without', label: ioIsFrench ? 'Enregistrer sans marqueur' : 'Save without marker', className: '' },
+              ...(canCreateMarker ? [{ value: 'create', label: ioIsFrench ? 'Créer le marqueur et l’O' : 'Create marker and O', className: 'is-primary' }] : []),
+              { value: 'without', label: ioIsFrench ? 'Enregistrer sans marqueur' : 'Save without marker', className: canCreateMarker ? '' : 'is-primary' },
               { value: 'cancel', label: ioIsFrench ? 'Annuler' : 'Cancel', className: '' }
             ]
           });

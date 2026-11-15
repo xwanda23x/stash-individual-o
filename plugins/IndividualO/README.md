@@ -1,3 +1,7 @@
+## Version 0.8.10
+- Lorsque aucun marqueur n'est sélectionné, l'enregistrement sans marqueur capture désormais toujours l'image vidéo actuelle, même si la proposition de création de marqueur est désactivée.
+- Si la proposition est activée mais que le titre du marqueur ou son tag principal n'est pas configuré, le plugin propose tout de même « Enregistrer sans marqueur » ou « Annuler » ; la création de marqueur n'est proposée que lorsque les deux paramètres sont renseignés.
+
 ## Version 0.8.8
 - When saving an Individual O using “Save without marker”, captures the current video frame and displays it in history thumbnails.
 

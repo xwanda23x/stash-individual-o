@@ -2257,14 +2257,20 @@
           return;
         }
         const button = event.currentTarget;
+        // Refresh the marker settings at the point of saving. The manager may
+        // have remained open while plugin settings changed, and cached values
+        // must never bypass the no-marker confirmation.
+        await loadMarkerSettings(true);
         const selectedMarkerIdBeforeSave = content.querySelector('input[name="individual-o-marker-choice"]:checked')?.value || '';
         let createMarkerAtCurrentTime = false;
         // Any save without a selected marker must capture the current video frame.
         // If the marker-creation prompt is disabled, the no-marker save remains
         // automatic, but it must never silently skip the snapshot.
-        let saveWithoutMarkerChosen = !selectedMarkerIdBeforeSave;
-        if (!selectedMarkerIdBeforeSave && (markerCreationPromptEnabled || !newMarkerTitle || !newMarkerPrimaryTag)) {
-          const canCreateMarker = Boolean(newMarkerTitle && newMarkerPrimaryTag);
+        const canCreateMarker = Boolean(newMarkerTitle && newMarkerPrimaryTag);
+        const mustAskHowToSaveWithoutMarker = !selectedMarkerIdBeforeSave &&
+          (markerCreationPromptEnabled || !canCreateMarker);
+        let saveWithoutMarkerChosen = !selectedMarkerIdBeforeSave && !mustAskHowToSaveWithoutMarker;
+        if (mustAskHowToSaveWithoutMarker) {
           const markerChoice = await showIndividualDialog({
             title: canCreateMarker
               ? (ioIsFrench ? 'Aucun marqueur « ' + newMarkerTitle + ' » sélectionné' : 'No « ' + newMarkerTitle + ' » marker selected')

@@ -1,3 +1,7 @@
+## 0.8.12
+- Refresh marker settings immediately before saving, so missing marker title/tag cannot bypass the confirmation dialog due to stale cached settings.
+- When no marker is selected and marker creation cannot be configured, explicitly ask whether to save without a marker or cancel; saving without a marker captures the current video frame.
+
 - Lorsque le titre du marqueur ou le tag principal est absent, la confirmation « Enregistrer sans marqueur » ou « Annuler » est maintenant affichée même si la proposition de création automatique est désactivée.
 - When the marker title or primary tag is missing, the “Save without marker” / “Cancel” confirmation is now shown even if automatic marker creation is disabled.
 ## Version 0.8.10

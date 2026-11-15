@@ -1,3 +1,10 @@
+## Version 0.8.8
+- When saving an Individual O using “Save without marker”, captures the current video frame and displays it in history thumbnails.
+
+Version 0.8.7
+- Corrige la détection de l’onglet Individual O des scènes sans dépendre du libellé traduit.
+- Restaure l’affichage du bouton en français et en anglais et traduit son intitulé.
+
 Version 0.8.5
 - Amélioration des traductions anglaises de l’interface.
 

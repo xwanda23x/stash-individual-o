@@ -778,6 +778,38 @@
     return Math.max(0, video.currentTime);
   }
 
+  function captureCurrentVideoFrame() {
+    const player = getStashVideoPlayer();
+    let video = player && typeof player.el === 'function' ? player.el().querySelector('video') : null;
+    if (!video) {
+      const videos = Array.from(document.querySelectorAll('video'));
+      video = videos.find(node => {
+        const rect = node.getBoundingClientRect();
+        return node.readyState >= 2 && rect.width > 0 && rect.height > 0;
+      }) || videos.find(node => node.readyState >= 2);
+    }
+    if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+      throw new Error(ioIsFrench
+        ? 'Impossible de capturer l’image actuelle : la vidéo n’est pas prête.'
+        : 'Unable to capture the current frame: the video is not ready.');
+    }
+    const maxWidth = 640;
+    const scale = Math.min(1, maxWidth / video.videoWidth);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas indisponible.');
+    try {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.72);
+    } catch (error) {
+      throw new Error(ioIsFrench
+        ? 'La capture vidéo a échoué. Vérifie que la vidéo est accessible.'
+        : 'Video capture failed. Check that the video is accessible.');
+    }
+  }
+
   function formatTimestamp(seconds) {
     if (seconds == null || !Number.isFinite(Number(seconds))) return '';
     const total = Math.floor(Math.max(0, Number(seconds)));
@@ -843,13 +875,18 @@
   }
 
   // Keep the full-width launcher only inside the plugin's dedicated sidebar tab.
+  // Determine the active tab from the actual Tab.Pane state, never its translated label.
   function placeLauncher(root) {
     const panel = document.querySelector('.scene-tabs');
     if (!panel) return false;
-    const activeLink = panel.querySelector('.nav-link.active, .nav-item.active .nav-link');
-    const isIndividualTab = activeLink && activeLink.textContent.trim().toLocaleLowerCase() === 'o individuel';
     const pane = panel.querySelector('#individual-o-scene-sidebar-history');
-    if (!isIndividualTab || !pane) {
+    const tabPane = pane && pane.closest('.tab-pane');
+    const isIndividualTab = !!(
+      pane && tabPane &&
+      (tabPane.classList.contains('active') || tabPane.classList.contains('show')) &&
+      tabPane.getAttribute('aria-hidden') !== 'true'
+    );
+    if (!isIndividualTab) {
       root.remove();
       return false;
     }
@@ -1642,7 +1679,9 @@
             scene_date: scene.date || '',
             marker_id: marker ? String(marker.id) : (entry.marker_id ? String(entry.marker_id) : null),
             marker_title: marker ? (marker.title || entry.marker_title || 'Marqueur') : (entry.marker_title || ''),
-            marker_seconds: marker ? Number(marker.seconds) : (entry.marker_seconds != null ? Number(entry.marker_seconds) : entry.timestamp)
+            marker_seconds: marker ? Number(marker.seconds) : (entry.marker_seconds != null ? Number(entry.marker_seconds) : entry.timestamp),
+            timestamp: entry.timestamp,
+            snapshot_data: entry.snapshot_data || null
           });
         }
       });
@@ -1832,9 +1871,11 @@
         : '/scenes/' + encodeURIComponent(entry.scene_id);
       const thumb = isImage
         ? '<a class="individual-o-history-thumb-link" href="' + entityUrl + '" title="Ouvrir l’image"><img class="individual-o-history-marker-thumb" src="/image/' + encodeURIComponent(entry.image_id) + '/thumbnail" alt="" loading="lazy"></a>'
-        : (entry.marker_id
-          ? '<a class="individual-o-history-thumb-link" href="' + entityUrl + (entry.marker_seconds != null ? '?t=' + encodeURIComponent(Math.floor(Number(entry.marker_seconds))) : '') + '" title="Ouvrir la scène au marqueur ' + escapeHTML(entry.marker_title || '') + '"><img class="individual-o-history-marker-thumb" src="/scene/' + encodeURIComponent(entry.scene_id) + '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/screenshot" alt="" loading="lazy"></a>'
-          : '');
+        : (entry.snapshot_data
+          ? '<a class="individual-o-history-thumb-link" href="' + entityUrl + (entry.timestamp != null ? '?t=' + encodeURIComponent(Math.floor(Number(entry.timestamp))) : '') + '" title="Ouvrir la scène au moment de l’O individuel"><img class="individual-o-history-marker-thumb" src="' + escapeHTML(entry.snapshot_data) + '" alt="Capture vidéo au moment de l’O individuel" loading="lazy"></a>'
+          : (entry.marker_id
+            ? '<a class="individual-o-history-thumb-link" href="' + entityUrl + (entry.marker_seconds != null ? '?t=' + encodeURIComponent(Math.floor(Number(entry.marker_seconds))) : '') + '" title="Ouvrir la scène au marqueur ' + escapeHTML(entry.marker_title || '') + '"><img class="individual-o-history-marker-thumb" src="/scene/' + encodeURIComponent(entry.scene_id) + '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/screenshot" alt="" loading="lazy"></a>'
+            : ''));
       return '<div class="individual-o-history-row">' + thumb + '<div class="individual-o-history-main"><div class="individual-o-history-date">' + escapeHTML(formatDate(entry.date)) + '</div>' +
         '<a class="individual-o-scene-link" href="' + entityUrl + '">' + escapeHTML(entry.scene_title) + '</a></div>' +
         '</div>';
@@ -1853,8 +1894,8 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'individual-o-launcher';
-    button.innerHTML = individualOIconHTML('individual-o-launcher-icon') + '<span>Enregistrer un O individuel</span>';
-    button.title = 'Enregistrer un O pour un ou plusieurs performeurs de cette scène';
+    button.innerHTML = individualOIconHTML('individual-o-launcher-icon') + '<span>' + (ioIsFrench ? 'Enregistrer un O individuel' : 'Record an Individual O') + '</span>';
+    button.title = ioIsFrench ? 'Enregistrer un O pour un ou plusieurs performeurs de cette scène' : 'Record an O for one or more performers in this scene';
     button.addEventListener('click', () => openManager(sceneId));
     root.appendChild(button);
     placeLauncher(root);
@@ -2218,6 +2259,7 @@
         const button = event.currentTarget;
         const selectedMarkerIdBeforeSave = content.querySelector('input[name="individual-o-marker-choice"]:checked')?.value || '';
         let createMarkerAtCurrentTime = false;
+        let saveWithoutMarkerChosen = false;
         if (!selectedMarkerIdBeforeSave && markerCreationPromptEnabled && newMarkerTitle && newMarkerPrimaryTag) {
           const markerChoice = await showIndividualDialog({
             title: ioIsFrench
@@ -2235,11 +2277,16 @@
           });
           if (markerChoice === 'cancel') return;
           createMarkerAtCurrentTime = markerChoice === 'create';
+          saveWithoutMarkerChosen = markerChoice === 'without';
         }
         button.disabled = true;
         status.textContent = 'Enregistrement…';
         status.className = 'individual-o-status';
         try {
+          // Capture only when the user explicitly chooses "Save without marker".
+          // This stores the exact frame currently displayed by the video player.
+          const snapshotTimestamp = saveWithoutMarkerChosen ? currentPlaybackTime() : null;
+          const noMarkerSnapshot = saveWithoutMarkerChosen ? captureCurrentVideoFrame() : null;
           const fresh = await loadScene(sceneId);
           const entries = fresh.history;
           const classicODate = content.querySelector('#individual-o-classic-o-select')?.value || '';
@@ -2257,12 +2304,15 @@
           }
           const newEntry = {
             id: makeId(), date: selectedDate.toISOString(), performer_ids: selected,
-            timestamp: selectedMarker ? Number(selectedMarker.seconds) : capturedTimestamp
+            timestamp: selectedMarker ? Number(selectedMarker.seconds) :
+              (snapshotTimestamp == null ? capturedTimestamp : snapshotTimestamp)
           };
           if (selectedMarker) {
             newEntry.marker_id = String(selectedMarker.id);
             newEntry.marker_title = selectedMarker.title || newMarkerTitle;
             newEntry.marker_seconds = Number(selectedMarker.seconds);
+          } else if (noMarkerSnapshot) {
+            newEntry.snapshot_data = noMarkerSnapshot;
           }
           entries.unshift(newEntry);
           await saveHistory(sceneId, entries);
@@ -2559,18 +2609,17 @@
   }
 
   function markerThumbnailHTML(entry, className) {
-    if (!entry || !entry.marker_id) return '';
-    const src = '/scene/' + encodeURIComponent(entry.scene_id || currentSceneId()) +
-      '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/screenshot';
+    if (!entry || (!entry.marker_id && !entry.snapshot_data)) return '';
     const markerTime = entry.marker_seconds == null ? entry.timestamp : entry.marker_seconds;
+    const src = entry.snapshot_data || ('/scene/' + encodeURIComponent(entry.scene_id || currentSceneId()) +
+      '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/screenshot');
     const image = '<img class="' + className + '" src="' + escapeHTML(src) +
-      '" loading="lazy" alt="Aperçu du marqueur Splooge" title="Cliquer pour accéder au marqueur à ' +
-      escapeHTML(formatTimestamp(markerTime)) +
+      '" loading="lazy" alt="' + (entry.snapshot_data ? 'Capture vidéo au moment de l’O individuel' : 'Aperçu du marqueur Splooge') +
+      '" title="' + (entry.snapshot_data ? 'Capture vidéo au moment de l’enregistrement' : 'Cliquer pour accéder au marqueur à ' + escapeHTML(formatTimestamp(markerTime))) +
       '" onerror="this.classList.add(\'is-unavailable\');this.removeAttribute(\'src\');">';
     if (markerTime == null) return image;
     return '<button type="button" class="individual-o-marker-thumb-button" data-individual-o-marker-seek="' +
-      escapeHTML(markerTime) + '" aria-label="Accéder au marqueur à ' +
-      escapeHTML(formatTimestamp(markerTime)) + '">' + image + '</button>';
+      escapeHTML(markerTime) + '" aria-label="Accéder à ' + escapeHTML(formatTimestamp(markerTime)) + '">' + image + '</button>';
   }
 
   function renderHistory(history, names, editingId, sceneId) {
@@ -2649,6 +2698,7 @@
               scene_date: scene.date || '', marker_id: entry.marker_id || null,
               marker_title: marker ? (marker.title || 'Marqueur') : (entry.marker_title || ''),
               marker_seconds: marker ? marker.seconds : entry.marker_seconds,
+              snapshot_data: entry.snapshot_data || null,
               raw_entry: entry
             });
           });
@@ -2766,7 +2816,13 @@
       const entityLabel = isImage ? 'Image' : 'Scène';
       return '<article class="io-global-row" data-entry-id="' + escapeHTML(entry.id) + '" data-entity-type="' + (isImage ? 'image' : 'scene') + '" data-entity-id="' + escapeHTML(entityId) + '">' +
         '<div class="io-global-date">' + escapeHTML(formatDate(entry.date)) + '</div>' +
-        (isImage ? '<img class="io-global-image-thumb" src="/image/' + encodeURIComponent(entityId) + '/thumbnail" alt="">' : '') +
+        (isImage
+          ? '<img class="io-global-image-thumb" src="/image/' + encodeURIComponent(entityId) + '/thumbnail" alt="">'
+          : (entry.snapshot_data
+            ? '<img class="io-global-image-thumb" src="' + escapeHTML(entry.snapshot_data) + '" alt="Capture vidéo au moment de l’O individuel">'
+            : (entry.marker_id
+              ? '<img class="io-global-image-thumb" src="/scene/' + encodeURIComponent(entityId) + '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/screenshot" alt="Aperçu du marqueur">'
+              : ''))) +
         '<div class="io-global-main"><div class="io-global-performers">' + escapeHTML(entry.performer_names.join(', ') || 'Aucun performeur') + '</div>' +
         '<a class="io-global-scene" href="' + entityPath + encodeURIComponent(entityId) + '">' + entityLabel + ' · ' + escapeHTML(entry.scene_title) + '</a>' +
         '<div class="io-global-meta">' + timestamp + marker + '</div></div>' +
@@ -3281,15 +3337,17 @@
               h('div', { className: 'io-native-result-meta' }, h('span', null, formatDate(entry.date)), h('span', null, 'Image'))));
         }
         const groupedEntries = group.entries;
-        const markerImage = entry.marker_id
+        const markerImage = entry.snapshot_data || (entry.marker_id
           ? '/scene/' + encodeURIComponent(entry.scene_id) + '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/screenshot'
-          : '';
+          : '');
         const markerLabel = entry.marker_id ? (entry.marker_title || 'Marqueur associé') : 'Aucun marqueur associé';
         const sceneUrl = '/scenes/' + encodeURIComponent(entry.scene_id) +
           (entry.timestamp != null ? '?t=' + Math.floor(entry.timestamp) : '');
         return h('article', { className: 'io-native-result', key: entry.scene_id + ':' + entry.id },
           h(window.PluginApi.libraries.ReactRouterDOM.Link, { className: 'io-native-thumb-link individual-o-marker-preview-host', to: sceneUrl, title: 'Ouvrir la scène au moment enregistré', style: { position: 'relative' } },
-            markerImage
+            entry.snapshot_data
+              ? h('img', { className: 'io-native-thumb', src: entry.snapshot_data, alt: 'Capture vidéo au moment de l’O individuel', loading: 'lazy' })
+              : markerImage
               ? h('video', {
                   className: 'io-native-thumb io-native-dynamic-thumb',
                   'data-preview-src': '/scene/' + encodeURIComponent(entry.scene_id) + '/scene_marker/' + encodeURIComponent(entry.marker_id) + '/stream',

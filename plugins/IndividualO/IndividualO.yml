@@ -1,6 +1,6 @@
 name: Individual O
 description: Enregistre les O individuels et synchronise la création automatique des O classiques natifs Stash.
-version: "0.8.5"
+version: "0.8.9"
 ui:
   javascript:
     - individual-o.js

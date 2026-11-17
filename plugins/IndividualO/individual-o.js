@@ -1901,6 +1901,24 @@
     placeLauncher(root);
   }
 
+  // Never interpret corrupted history as an empty history. Returning [] after a
+  // JSON parse error could cause the next save to overwrite valid user data.
+  function parseStoredHistory(raw, entityLabel) {
+    if (raw == null || raw === '') return [];
+    let parsed;
+    try {
+      parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (error) {
+      console.error('[Individual O] Historique illisible pour ' + entityLabel + '. Aucune écriture ne sera effectuée.', error);
+      throw new Error('L’historique Individual O de ' + entityLabel + ' est illisible. Aucune modification n’a été enregistrée afin de protéger tes données. Vérifie la base Stash ou restaure une sauvegarde.');
+    }
+    if (!Array.isArray(parsed)) {
+      console.error('[Individual O] Format d’historique invalide pour ' + entityLabel + '.');
+      throw new Error('Le format de l’historique Individual O de ' + entityLabel + ' est invalide. Aucune modification n’a été enregistrée afin de protéger tes données.');
+    }
+    return parsed;
+  }
+
   async function loadScene(sceneId) {
     const data = await gql(`query IndividualOScene($id: ID!) {
       findScene(id: $id) {
@@ -1911,12 +1929,8 @@
     }`, { id: sceneId });
     if (!data || !data.findScene) throw new Error('Scène introuvable.');
     const scene = data.findScene;
-    let history = [];
     const raw = scene.custom_fields && scene.custom_fields[FIELD_KEY];
-    if (raw) {
-      try { history = JSON.parse(raw); } catch (e) { history = []; }
-    }
-    if (!Array.isArray(history)) history = [];
+    const history = parseStoredHistory(raw, 'la scène #' + sceneId);
     return { scene, history };
   }
 
@@ -1929,37 +1943,20 @@
   let persistentImageIndexPromise = null;
   let imageIndexWritePromise = Promise.resolve();
 
-  function readLegacyLocalImageIndex() {
-    try {
-      const value = JSON.parse(localStorage.getItem(IMAGE_INDEX_KEY) || '[]');
-      return Array.isArray(value) ? Array.from(new Set(value.map(String))) : [];
-    } catch (_) { return []; }
-  }
-
   async function readIndividualImageIndex() {
     if (persistentImageIndex) return persistentImageIndex.slice();
     if (persistentImageIndexPromise) return persistentImageIndexPromise;
     persistentImageIndexPromise = (async () => {
-      try {
-        const data = await gql(`query IndividualOImageIndexConfig {
-          configuration { plugins(include: ["individual-o"]) }
-        }`);
-        const configs = data && data.configuration && data.configuration.plugins;
-        const pluginConfig = configs && (configs['individual-o'] || configs);
-        const stored = pluginConfig && pluginConfig[IMAGE_INDEX_CONFIG_KEY];
-        const serverIds = Array.isArray(stored) ? stored.map(String) : [];
-        // Fusionne toujours l'ancien index du navigateur avec celui de Stash.
-        // Cela permet à Opera de migrer ses données même si un autre navigateur
-        // a initialisé auparavant un index serveur encore vide.
-        const localIds = readLegacyLocalImageIndex();
-        persistentImageIndex = Array.from(new Set(serverIds.concat(localIds)));
-        if (!Array.isArray(stored) || persistentImageIndex.length !== serverIds.length) {
-          await persistIndividualImageIndex(persistentImageIndex);
-        }
-      } catch (error) {
-        console.warn('[Individual O] Lecture de l’index persistant impossible ; utilisation du cache local temporaire.', error);
-        persistentImageIndex = readLegacyLocalImageIndex();
+      const data = await gql(`query IndividualOImageIndexConfig {
+        configuration { plugins(include: ["individual-o"]) }
+      }`);
+      const configs = data && data.configuration && data.configuration.plugins;
+      const pluginConfig = configs && (configs['individual-o'] || configs);
+      const stored = pluginConfig && pluginConfig[IMAGE_INDEX_CONFIG_KEY];
+      if (stored != null && !Array.isArray(stored)) {
+        throw new Error('L’index des images Individual O enregistré dans Stash est invalide. Aucune entrée ne sera supprimée.');
       }
+      persistentImageIndex = Array.from(new Set((stored || []).map(String)));
       return persistentImageIndex.slice();
     })();
     try { return await persistentImageIndexPromise; }
@@ -1968,33 +1965,85 @@
 
   async function persistIndividualImageIndex(ids) {
     const normalized = Array.from(new Set((ids || []).map(String)));
-    imageIndexWritePromise = imageIndexWritePromise.then(async () => {
+    imageIndexWritePromise = imageIndexWritePromise.catch(() => {}).then(async () => {
       const currentData = await gql(`query IndividualOReadPluginConfig {
         configuration { plugins(include: ["individual-o"]) }
       }`);
       const configs = currentData && currentData.configuration && currentData.configuration.plugins;
       const existing = configs && (configs['individual-o'] || configs);
       const merged = Object.assign({}, existing || {}, { [IMAGE_INDEX_CONFIG_KEY]: normalized });
-      await gql(`mutation IndividualOWritePluginConfig($input: Map!) {
+      const result = await gql(`mutation IndividualOWritePluginConfig($input: Map!) {
         configurePlugin(plugin_id: "individual-o", input: $input)
       }`, { input: merged });
+      const verifyData = await gql(`query IndividualOVerifyImageIndexConfig {
+        configuration { plugins(include: ["individual-o"]) }
+      }`);
+      const verifyConfigs = verifyData && verifyData.configuration && verifyData.configuration.plugins;
+      const verifyPlugin = verifyConfigs && (verifyConfigs['individual-o'] || verifyConfigs);
+      const verified = verifyPlugin && verifyPlugin[IMAGE_INDEX_CONFIG_KEY];
+      if (!Array.isArray(verified) ||
+          JSON.stringify(Array.from(new Set(verified.map(String))).sort()) !==
+          JSON.stringify(normalized.slice().sort())) {
+        throw new Error('La vérification de l’index des images Individual O a échoué.');
+      }
+      return result;
     });
     try { await imageIndexWritePromise; }
-    catch (error) { console.error('[Individual O] Échec de sauvegarde de l’index dans Stash.', error); throw error; }
+    catch (error) {
+      console.error('[Individual O] Échec de sauvegarde de l’index dans Stash.', error);
+      throw error;
+    }
   }
 
   async function updateIndividualImageIndex(imageId, hasEntries) {
     const id = String(imageId);
-    const previous = await readIndividualImageIndex();
-    const hadEntry = previous.includes(id);
-    if (hadEntry === !!hasEntries) return;
-    const ids = previous.filter(value => value !== id);
-    if (hasEntries) ids.push(id);
-    persistentImageIndex = ids;
-    // Miroir local facultatif : accélère les lectures et permet une récupération
-    // temporaire si le serveur est indisponible.
-    try { localStorage.setItem(IMAGE_INDEX_KEY, JSON.stringify(ids)); } catch (_) {}
-    await persistIndividualImageIndex(ids);
+    return enqueueHistoryWrite('image-index', async () => {
+      const previous = await readIndividualImageIndex();
+      const ids = previous.filter(value => value !== id);
+      if (hasEntries) ids.push(id);
+      const normalized = Array.from(new Set(ids));
+      await persistIndividualImageIndex(normalized);
+      persistentImageIndex = normalized;
+    });
+  }
+
+  // Full, read-only scan used to repair/rebuild the server-side index from
+  // actual image custom fields. Any unreadable image aborts the rebuild;
+  // the existing index is left untouched rather than silently dropping IDs.
+  async function rebuildIndividualImageIndex(onProgress, shouldCancel) {
+    const pageSize = 500;
+    const first = await gql(`query IndividualOImageRebuildCount {
+      findImages(filter: { per_page: 1, page: 1 }) { count images { id } }
+    }`);
+    if (!first || !first.findImages || !Number.isFinite(Number(first.findImages.count))) {
+      throw new Error('Impossible de déterminer le nombre total d’images Stash. L’index existant est conservé.');
+    }
+    const total = Number(first.findImages.count);
+    const pages = Math.ceil(total / pageSize);
+    const ids = [];
+    for (let page = 1; page <= pages; page++) {
+      if (shouldCancel && shouldCancel()) throw new Error('Reconstruction interrompue. L’index précédent est conservé.');
+      const data = await gql(`query IndividualOImageRebuildPage($page: Int!, $perPage: Int!) {
+        findImages(filter: { per_page: $perPage, page: $page }) {
+          images { id custom_fields }
+        }
+      }`, { page, perPage: pageSize });
+      if (!data || !data.findImages || !Array.isArray(data.findImages.images)) {
+        throw new Error('Lecture incomplète de la bibliothèque d’images (page ' + page + '). L’index existant est conservé.');
+      }
+      for (const image of data.findImages.images) {
+        const raw = image.custom_fields && image.custom_fields[FIELD_KEY];
+        const history = parseStoredHistory(raw, 'l’image #' + image.id);
+        if (history.length) ids.push(String(image.id));
+      }
+      if (typeof onProgress === 'function') onProgress({ page, pages, scanned: Math.min(page * pageSize, total), total, indexed: ids.length });
+    }
+    if (shouldCancel && shouldCancel()) throw new Error('Reconstruction interrompue. L’index précédent est conservé.');
+    const normalized = Array.from(new Set(ids));
+    await persistIndividualImageIndex(normalized);
+    persistentImageIndex = normalized;
+    try { localStorage.removeItem(IMAGE_INDEX_KEY); } catch (_) {}
+    return normalized;
   }
 
   async function loadImage(imageId) {
@@ -2003,26 +2052,40 @@
     }`, { id: imageId });
     if (!data || !data.findImage) throw new Error('Image introuvable.');
     const image = data.findImage;
-    let history = [];
     const raw = image.custom_fields && image.custom_fields[FIELD_KEY];
-    if (raw) { try { history = JSON.parse(raw); } catch (_) { history = []; } }
-    if (!Array.isArray(history)) history = [];
-    // Ouvre/visite l'image : si elle contient déjà des O, elle rejoint l'index.
-    if (history.length) await updateIndividualImageIndex(imageId, true);
+    const history = parseStoredHistory(raw, 'l’image #' + imageId);
+    // La lecture ne modifie jamais l’index : seuls les enregistrements et
+    // la reconstruction manuelle peuvent le mettre à jour.
     return { image, history };
   }
 
   async function saveImageHistory(imageId, history) {
-    await gql(`mutation IndividualOSaveImage($input: ImageUpdateInput!) {
-      imageUpdate(input: $input) { id }
-    }`, { input: { id: String(imageId), custom_fields: { partial: { [FIELD_KEY]: JSON.stringify(history) } } } });
-    await updateIndividualImageIndex(imageId, Array.isArray(history) && history.length > 0);
-    invalidateIndividualSortCache();
-    globalHistoryCache = null;
-    performerHistoryCache.clear();
+    if (!Array.isArray(history)) throw new Error('Sauvegarde refusée : l’historique de l’image n’est pas une liste valide.');
+    const value = JSON.stringify(history);
+    return enqueueHistoryWrite('image:' + imageId, async () => {
+      const result = await gql(`mutation IndividualOSaveImage($input: ImageUpdateInput!) {
+        imageUpdate(input: $input) { id }
+      }`, { input: { id: String(imageId), custom_fields: { partial: { [FIELD_KEY]: value } } } });
+      if (!result || !result.imageUpdate || String(result.imageUpdate.id) !== String(imageId)) {
+        throw new Error('Stash n’a pas confirmé la sauvegarde de l’historique de l’image #' + imageId + '.');
+      }
+      const verification = await gql(`query IndividualOVerifyImageHistory($id: ID!) {
+        findImage(id: $id) { id custom_fields }
+      }`, { id: String(imageId) });
+      const stored = verification && verification.findImage && verification.findImage.custom_fields
+        ? verification.findImage.custom_fields[FIELD_KEY] : null;
+      if (stored !== value) {
+        throw new Error('La vérification après sauvegarde a échoué pour l’image #' + imageId + '. Les données affichées n’ont pas été confirmées par Stash.');
+      }
+      await updateIndividualImageIndex(imageId, history.length > 0);
+      invalidateIndividualSortCache();
+      globalHistoryCache = null;
+      performerHistoryCache.clear();
     // Le panneau de l'image est géré séparément de l'arbre React Stash.
     // Le recharger ici garantit l'actualisation après création, édition ou suppression.
-    await renderImageSidebarIndividualHistory(imageId, true);
+      await renderImageSidebarIndividualHistory(imageId, true);
+      return true;
+    });
   }
 
   function ensureImageHeaderLauncher(imageId) {
@@ -2103,17 +2166,46 @@
     return result.sceneMarkerCreate;
   }
 
-  async function saveHistory(sceneId, history) {
-    const value = JSON.stringify(history);
-    await gql(`mutation IndividualOSave($input: SceneUpdateInput!) {
-      sceneUpdate(input: $input) { id }
-    }`, {
-      input: {
-        id: sceneId,
-        custom_fields: { partial: { [FIELD_KEY]: value } }
-      }
+  // Serialize writes per entity inside this browser instance. This prevents
+  // overlapping mutations from racing each other; read-back verification below
+  // detects failed or overwritten writes instead of reporting false success.
+  const historyWriteQueues = new Map();
+  function enqueueHistoryWrite(entityKey, task) {
+    const key = String(entityKey);
+    const previous = historyWriteQueues.get(key) || Promise.resolve();
+    const current = previous.catch(() => {}).then(task);
+    historyWriteQueues.set(key, current);
+    return current.finally(() => {
+      if (historyWriteQueues.get(key) === current) historyWriteQueues.delete(key);
     });
-    invalidateIndividualSortCache();
+  }
+
+  async function saveHistory(sceneId, history) {
+    if (!Array.isArray(history)) throw new Error('Sauvegarde refusée : l’historique de la scène n’est pas une liste valide.');
+    const value = JSON.stringify(history);
+    return enqueueHistoryWrite('scene:' + sceneId, async () => {
+      const result = await gql(`mutation IndividualOSave($input: SceneUpdateInput!) {
+        sceneUpdate(input: $input) { id }
+      }`, {
+        input: {
+          id: sceneId,
+          custom_fields: { partial: { [FIELD_KEY]: value } }
+        }
+      });
+      if (!result || !result.sceneUpdate || String(result.sceneUpdate.id) !== String(sceneId)) {
+        throw new Error('Stash n’a pas confirmé la sauvegarde de l’historique de la scène #' + sceneId + '.');
+      }
+      const verification = await gql(`query IndividualOVerifySceneHistory($id: ID!) {
+        findScene(id: $id) { id custom_fields }
+      }`, { id: sceneId });
+      const stored = verification && verification.findScene && verification.findScene.custom_fields
+        ? verification.findScene.custom_fields[FIELD_KEY] : null;
+      if (stored !== value) {
+        throw new Error('La vérification après sauvegarde a échoué pour la scène #' + sceneId + '. Les données affichées n’ont pas été confirmées par Stash.');
+      }
+      invalidateIndividualSortCache();
+      return true;
+    });
   }
 
   function formatDate(iso) {
@@ -2739,8 +2831,8 @@
     }
   }
 
-  // Recherche dédiée aux O enregistrés sur les images. Elle n'est appelée
-  // que lorsque l'utilisateur ouvre l'onglet Images : aucun impact sur les tris scènes.
+  // Recherche dédiée aux O enregistrés sur les images : utilise uniquement
+  // l’index serveur. La reconstruction complète est déclenchée manuellement.
   async function fetchAllIndividualImageHistory() {
     const ids = await readIndividualImageIndex();
     const all = [];
@@ -2750,9 +2842,8 @@
       const results = await Promise.all(batch.map(async imageId => {
         try { return await loadImage(imageId); }
         catch (error) {
-          console.warn('[Individual O] Image indexée inaccessible :', imageId, error);
-          await updateIndividualImageIndex(imageId, false);
-          return null;
+          console.error('[Individual O] Image indexée inaccessible ; son identifiant est conservé dans l’index.', imageId, error);
+          throw error;
         }
       }));
       results.forEach(result => {
@@ -3020,6 +3111,9 @@
       const [imageEntries, setImageEntries] = React.useState([]);
       const [imageLoading, setImageLoading] = React.useState(false);
       const [imageError, setImageError] = React.useState('');
+      const [imageIndexScan, setImageIndexScan] = React.useState('');
+      const [imageIndexScanning, setImageIndexScanning] = React.useState(false);
+      const imageIndexCancelRef = React.useRef(false);
       const [loading, setLoading] = React.useState(true);
       const [error, setError] = React.useState('');
       const [performer, setPerformer] = React.useState('');
@@ -3424,6 +3518,25 @@
       } : {};
       const sceneInput = document.querySelector('.io-native-scene-filter input');
       const sceneRect = sceneInput && sceneInput.getBoundingClientRect();
+      const startImageIndexRebuild = async () => {
+        if (imageIndexScanning) return;
+        imageIndexCancelRef.current = false;
+        setImageIndexScanning(true);
+        setImageIndexScan('Préparation de la reconstruction…');
+        setImageError('');
+        try {
+          await rebuildIndividualImageIndex(progress => {
+            setImageIndexScan('Analyse : ' + progress.scanned.toLocaleString('fr-FR') + ' / ' + progress.total.toLocaleString('fr-FR') + ' images · ' + progress.indexed.toLocaleString('fr-FR') + ' indexées');
+          }, () => imageIndexCancelRef.current);
+          setImageIndexScan('Index reconstruit.');
+          setRefreshKey(v => v + 1);
+        } catch (err) {
+          setImageIndexScan(err && err.message ? err.message : String(err));
+        } finally {
+          setImageIndexScanning(false);
+        }
+      };
+
       const sceneMenuStyle = sceneRect ? {
         position: 'fixed',
         top: (sceneRect.bottom + 3) + 'px',
@@ -3442,6 +3555,12 @@
         h('div', { className: 'io-history-tabs nav nav-tabs mb-3', role: 'tablist' },
           h('button', { type: 'button', role: 'tab', 'aria-selected': activeTab === 'scenes', className: 'nav-link' + (activeTab === 'scenes' ? ' active' : ''), onClick: () => { setActiveTab('scenes'); setScene(''); setSelectedSceneId(''); } }, 'Scènes'),
           h('button', { type: 'button', role: 'tab', 'aria-selected': activeTab === 'images', className: 'nav-link' + (activeTab === 'images' ? ' active' : ''), onClick: () => { setActiveTab('images'); setScene(''); setSelectedSceneId(''); } }, 'Images')),
+        activeTab === 'images' ? h('div', { className: 'd-flex align-items-center flex-wrap mb-3', style: { gap: '10px' } },
+          h('button', { type: 'button', className: 'btn btn-outline-secondary', disabled: imageIndexScanning, onClick: startImageIndexRebuild }, imageIndexScanning ? 'Reconstruction en cours…' : 'Reconstruire l’index des images'),
+          imageIndexScanning ? h('button', { type: 'button', className: 'btn btn-outline-danger', onClick: () => { imageIndexCancelRef.current = true; } }, 'Interrompre') : null,
+          imageIndexScan ? h('span', { className: 'text-muted small', role: 'status' }, imageIndexScan) : null,
+          h('div', { className: 'text-muted small w-100' }, 'Cette opération parcourt toute la bibliothèque. Elle est facultative et ne se lance jamais automatiquement. L’index existant est conservé si la reconstruction échoue ou est interrompue.')
+        ) : null,
         h('div', { className: 'card mb-3' },
           h('div', { className: 'card-body io-native-filter-grid' },
             h('div', { className: 'form-group io-native-filter io-native-performer-filter' },

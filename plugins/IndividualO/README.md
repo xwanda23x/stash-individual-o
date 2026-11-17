@@ -1,3 +1,27 @@
+## 0.8.16
+
+- Suppression de la reconstruction automatique de l’index des images à l’ouverture de l’historique.
+- L’historique des images utilise immédiatement l’index conservé côté serveur.
+- Ajout d’une reconstruction manuelle, progressive (lots de 500 images) et interruptible depuis l’onglet Images.
+- L’index précédent n’est remplacé qu’après une analyse complète réussie ; en cas d’erreur ou d’interruption, il reste intact.
+
+## 0.8.15
+- L’index des images est désormais reconstruit depuis les champs personnalisés réellement stockés dans Stash (une fois par session).
+- L’index serveur devient la référence ; l’ancien index local n’est plus fusionné ni utilisé comme solution de repli.
+- Une erreur temporaire de lecture d’image ne retire plus son identifiant de l’index.
+- La reconstruction est annulée sans écriture si une page d’images ou un historique est illisible, afin de préserver l’index précédent.
+- La sauvegarde et la relecture de l’index serveur sont vérifiées.
+
+## 0.8.14
+- Les écritures d’historique des scènes et des images sont sérialisées par entité dans l’instance du navigateur.
+- Chaque sauvegarde est confirmée par Stash puis relue pour vérifier que le champ personnalisé contient exactement la valeur envoyée.
+- En cas d’échec de confirmation ou de divergence à la relecture, le plugin signale une erreur au lieu d’annoncer une sauvegarde réussie.
+
+## 0.8.13
+- Protection des historiques : une erreur JSON ou un format invalide ne sera plus interprété comme un historique vide.
+- Les chargements de scènes et d’images interrompent maintenant l’opération si l’historique est illisible, afin d’éviter tout écrasement silencieux.
+- Les fonctions de sauvegarde refusent également les valeurs qui ne sont pas des tableaux.
+
 ## 0.8.12
 - Refresh marker settings immediately before saving, so missing marker title/tag cannot bypass the confirmation dialog due to stale cached settings.
 - When no marker is selected and marker creation cannot be configured, explicitly ask whether to save without a marker or cancel; saving without a marker captures the current video frame.

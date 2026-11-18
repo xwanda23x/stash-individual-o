@@ -383,3 +383,9 @@ VERSION 0.7.76 — O INDIVIDUELS SUR LES IMAGES
 - Les données et associations des scènes restent stockées séparément ; les marqueurs Splooge ne concernent pas les images.
 
 Version 0.7.107: reduces the weight of individual O counter numerals to match the lighter typography of Stash native O counters.
+
+
+## 0.8.17
+
+- Protège `individual_o_history_v1` lors des modifications d'une scène depuis l'interface Stash : avant une mutation `sceneUpdate` qui transmet `custom_fields`, le plugin relit la valeur persistée et la réinjecte dans `full` ou `partial` afin qu'un état React obsolète ne puisse pas écraser l'historique.
+- Si la lecture de protection échoue, la modification de scène est bloquée avec un message explicite plutôt que de risquer la perte des historiques.

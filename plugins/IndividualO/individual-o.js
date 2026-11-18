@@ -500,6 +500,75 @@
     return payload;
   }
 
+
+  // Protect Individual O history from Stash's scene editor. The editor can
+  // submit a stale/full custom_fields object after the plugin has saved a new
+  // history value. Before forwarding such a sceneUpdate, merge the latest
+  // persisted Individual O field into the editor's custom_fields payload.
+  async function preserveIndividualHistoryOnSceneUpdate(request) {
+    const query = String(request && request.query || '');
+    const variables = request && request.variables;
+    const updateInput = variables && variables.input;
+    if (!/\bsceneUpdate\s*\(/i.test(query) || !updateInput || updateInput.id == null) {
+      return { modified: false };
+    }
+    if (!Object.prototype.hasOwnProperty.call(updateInput, 'custom_fields')) {
+      return { modified: false };
+    }
+
+    const sceneId = String(updateInput.id);
+    const response = await nativeFetch('/graphql', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `query IndividualOPreserveSceneHistory($id: ID!) {
+          findScene(id: $id) { id custom_fields }
+        }`,
+        variables: { id: sceneId }
+      })
+    });
+    if (!response.ok) {
+      throw new Error('Lecture de protection impossible (HTTP ' + response.status + ').');
+    }
+    const payload = await response.json();
+    if (payload.errors && payload.errors.length) {
+      throw new Error(payload.errors.map(error => error.message).join('\n'));
+    }
+    const scene = payload.data && payload.data.findScene;
+    if (!scene) throw new Error('Scène #' + sceneId + ' introuvable pendant la protection de son historique.');
+
+    const storedHistory = scene.custom_fields && scene.custom_fields[FIELD_KEY];
+    if (typeof storedHistory !== 'string' || !storedHistory) {
+      return { modified: false };
+    }
+
+    let customFields = updateInput.custom_fields;
+    if (!customFields || typeof customFields !== 'object' || Array.isArray(customFields)) {
+      customFields = {};
+      updateInput.custom_fields = customFields;
+    }
+
+    let merged = false;
+    ['full', 'partial'].forEach(mode => {
+      if (Object.prototype.hasOwnProperty.call(customFields, mode)) {
+        if (!customFields[mode] || typeof customFields[mode] !== 'object' || Array.isArray(customFields[mode])) {
+          customFields[mode] = {};
+        }
+        customFields[mode][FIELD_KEY] = storedHistory;
+        merged = true;
+      }
+    });
+    if (!merged) {
+      customFields.partial = Object.assign({}, customFields.partial || {}, {
+        [FIELD_KEY]: storedHistory
+      });
+    }
+
+    console.debug('[Individual O] Historique préservé pendant la modification de la scène #' + sceneId + '.');
+    return { modified: true };
+  }
+
   function installIndividualSortInterceptor() {
     if (individualSortInterceptorInstalled) return;
     individualSortInterceptorInstalled = true;
@@ -510,6 +579,25 @@
       if (typeof body === 'string') {
         try {
           const request = JSON.parse(body);
+
+          // Stash's scene editor may send a stale custom_fields snapshot. Merge
+          // the latest database value before the sceneUpdate reaches Stash.
+          if (/\bsceneUpdate\s*\(/i.test(String(request.query || '')) &&
+              request.variables && request.variables.input &&
+              Object.prototype.hasOwnProperty.call(request.variables.input, 'custom_fields')) {
+            try {
+              const protection = await preserveIndividualHistoryOnSceneUpdate(request);
+              if (protection.modified) {
+                args[1] = Object.assign({}, init, { body: JSON.stringify(request) });
+              }
+            } catch (error) {
+              console.error('[Individual O] Modification de scène bloquée pour protéger l’historique individuel :', error);
+              return new Response(JSON.stringify({
+                errors: [{ message: 'Individual O a empêché cette modification de scène, car il n’a pas pu vérifier la sauvegarde de son historique. Réessaie ; aucun historique n’a été supprimé.' }]
+              }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+            }
+          }
+
           const path = window.location.pathname;
           const isMarkerListRoute = /^\/(?:scenes\/markers|markers|tags\/\d+\/markers)(?:\/|$)/i.test(path);
           const isPerformerListRoute = /^\/performers\/?$/i.test(path);
